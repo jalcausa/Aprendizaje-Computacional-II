@@ -1,0 +1,5 @@
+tensorflow==2.20.0
+keras==3.13.2
+matplotlib==3.10.8
+pandas==3.0.1
+python-docx==1.2.0

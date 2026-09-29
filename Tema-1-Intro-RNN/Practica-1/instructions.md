@@ -1,0 +1,3 @@
+Estudiar el rendimiento de los distintos parámetros de entrenamiento (optimizers, epochs, batch size, ...) del modelo definido en el siguiente ejemplo. Visualiza los resultados comparativos de forma gráfica y numérica, utilizando distintas configuraciones para hacer un estudio más exhaustivo. La evaluación de las distintas configuraciones debe ser detallada, calculando exactitud (accuracy), número de errores, matriz de confusión tanto en el conjunto de entrenamiento como de test, además del tiempo invertido en el entrenamiento. Estos resultados se deben justificar y razonar de forma adecuada, explicando las causas y si son coherentes. 
+
+¿Qué configuración obtiene el mejor rendimiento para ese conjunto de datos? Guarde el mejor modelo entrenado en disco para uso futuro 
