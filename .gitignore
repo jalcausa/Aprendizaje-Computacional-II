@@ -1,2 +1,6 @@
 .DS_Store
 .devin/
+.venv/
+.ipynb_checkpoints/
+.keras/
+.torch/
