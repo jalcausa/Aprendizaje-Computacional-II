@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tema 1 · Redes neuronales artificiales — AC·II</title>
+<meta name="description" content="Apuntes del Tema 1 de Aprendizaje Computacional II: redes neuronales, retropropagación, optimizadores y prácticas 0, 1 y 2.">
+<script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/site.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script defer src="../assets/js/site.js"></script>
+</head>
+<body>
+<div class="progress-line"></div>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-2M7 7l3 5M7 17l3-5M7 17l3 2M14 5l3 6M14 12h3M14 19l3-6"/></svg></span> AC·II <small>Aprendizaje Computacional II</small></a>
+  <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="../index.html">Inicio</a>
+    <a href="tema-1.html" aria-current="page">Tema 1 · RNA</a>
+    <a href="tema-2.html">Tema 2 · CNN</a>
+    <a href="tema-3.html">Tema 3 · GAN</a>
+    <a href="../test.html">Test</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="../index.html">Inicio</a> / Tema 1</div>
+    <h1>Tema 1 · Redes neuronales artificiales</h1>
+    <p>Qué es aprender a partir de datos, cómo funciona una neurona, cómo se entrena una red con retropropagación y qué efecto tienen los hiperparámetros. Al final, las prácticas 0, 1 y 2 explicadas celda a celda.</p>
+    <div class="pill-row">
+      <a href="#t1-ml">Teoría</a>
+      <a href="#p0">Práctica 0 · Perceptrón desde cero</a>
+      <a href="#p1">Práctica 1 · Hiperparámetros MNIST</a>
+      <a href="#p2">Práctica 2 · Par / impar</a>
+      <a href="../test.html#tema=T1">Test del tema ↗</a>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc" aria-label="Índice del tema">
+    <details open><summary class="overline" style="cursor:pointer;list-style:none">Contenido</summary>
+    <ol data-auto></ol>
+    </details>
+  </aside>
+
+  <main class="notes">
+
+  <div class="part-title" data-part="Parte I · Teoría"><div><span>Parte I</span><h2>Teoría</h2></div></div>
+
+  <!-- ============================================================ 1 -->
+  <section id="t1-ml">
+    <h2 class="sec" data-short="Aprendizaje automático"><span class="n">1</span> ¿Qué es el aprendizaje automático?</h2>
+    <p>Hay problemas (predecir el tiempo, reconocer personas, contestar preguntas libres, recomendar productos) en los que es imposible escribir a mano una regla para cada caso. El <strong>aprendizaje automático</strong> (<em>machine learning</em>) estudia algoritmos que <strong>mejoran con la experiencia</strong>: en lugar de programar reglas, se le dan <strong>ejemplos</strong> y el modelo aprende a transformar entradas en salidas.</p>
+
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 190" width="640" role="img" aria-label="Programación tradicional frente a aprendizaje automático">
+        <defs><marker id="ar1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <text x="20" y="22" class="s-txt s-bold">Programación tradicional</text>
+        <rect x="20" y="36" width="110" height="34" rx="8" class="s-box"/><text x="75" y="58" text-anchor="middle" class="s-txt">Reglas</text>
+        <rect x="20" y="80" width="110" height="34" rx="8" class="s-box"/><text x="75" y="102" text-anchor="middle" class="s-txt">Datos</text>
+        <rect x="190" y="52" width="110" height="46" rx="10" class="s-navy"/><text x="245" y="80" text-anchor="middle" class="s-txt s-white s-bold">Programa</text>
+        <path d="M130 53 L188 68" class="s-acc" marker-end="url(#ar1)"/><path d="M130 97 L188 84" class="s-acc" marker-end="url(#ar1)"/>
+        <rect x="190" y="130" width="110" height="34" rx="8" class="s-okf"/><text x="245" y="152" text-anchor="middle" class="s-txt">Respuestas</text>
+        <path d="M245 98 L245 128" class="s-acc" marker-end="url(#ar1)"/>
+
+        <text x="350" y="22" class="s-txt s-bold">Aprendizaje automático</text>
+        <rect x="350" y="36" width="110" height="34" rx="8" class="s-box"/><text x="405" y="58" text-anchor="middle" class="s-txt">Datos</text>
+        <rect x="350" y="80" width="110" height="34" rx="8" class="s-box"/><text x="405" y="102" text-anchor="middle" class="s-txt">Respuestas</text>
+        <rect x="520" y="52" width="110" height="46" rx="10" class="s-navy"/><text x="575" y="74" text-anchor="middle" class="s-txt s-white s-bold">Entrenar</text><text x="575" y="90" text-anchor="middle" class="s-mut" style="fill:#c4d4f2">(optimizar)</text>
+        <path d="M460 53 L518 68" class="s-acc" marker-end="url(#ar1)"/><path d="M460 97 L518 84" class="s-acc" marker-end="url(#ar1)"/>
+        <rect x="520" y="130" width="110" height="34" rx="8" class="s-gold"/><text x="575" y="152" text-anchor="middle" class="s-txt">Modelo (reglas)</text>
+        <path d="M575 98 L575 128" class="s-acc" marker-end="url(#ar1)"/>
+      </svg>
+      </div>
+      <figcaption><strong>Programar con datos:</strong> en ML se dan ejemplos (entradas + etiquetas) y el algoritmo encuentra la función que los relaciona.</figcaption>
+    </figure>
+
+    <h3 id="t1-componentes">Los cuatro componentes de cualquier problema de ML</h3>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 165" width="640" role="img" aria-label="Componentes del aprendizaje automático">
+        <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <rect x="10" y="40" width="130" height="60" rx="10" class="s-soft"/><text x="75" y="66" text-anchor="middle" class="s-txt s-bold">1 · Datos</text><text x="75" y="84" text-anchor="middle" class="s-mut">ejemplos + etiquetas</text>
+        <rect x="170" y="40" width="130" height="60" rx="10" class="s-soft"/><text x="235" y="66" text-anchor="middle" class="s-txt s-bold">2 · Modelo</text><text x="235" y="84" text-anchor="middle" class="s-mut">transforma x en ŷ</text>
+        <rect x="330" y="40" width="140" height="60" rx="10" class="s-soft"/><text x="400" y="66" text-anchor="middle" class="s-txt s-bold">3 · Función objetivo</text><text x="400" y="84" text-anchor="middle" class="s-mut">pérdida: menor = mejor</text>
+        <rect x="500" y="40" width="130" height="60" rx="10" class="s-soft"/><text x="565" y="66" text-anchor="middle" class="s-txt s-bold">4 · Algoritmo</text><text x="565" y="84" text-anchor="middle" class="s-mut">optimiza parámetros</text>
+        <path d="M140 70 H166" class="s-acc" marker-end="url(#ar2)"/><path d="M300 70 H326" class="s-acc" marker-end="url(#ar2)"/><path d="M470 70 H496" class="s-acc" marker-end="url(#ar2)"/>
+        <path d="M565 102 C565 140 235 140 235 104" class="s-goldl s-dash" marker-end="url(#ar2)"/>
+        <text x="400" y="158" text-anchor="middle" class="s-mut">actualiza los parámetros del modelo (iterativo)</text>
+      </svg>
+      </div>
+      <figcaption>Datos → modelo → pérdida → algoritmo de optimización, que vuelve a ajustar el modelo. Se repite muchas veces.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>Datos</strong>: colección de ejemplos. Cada ejemplo tiene <em>características</em> (entradas) y a menudo una <em>etiqueta</em> (objetivo). Pueden ser vectores de longitud fija (los píxeles de una imagen) o de longitud variable (texto). <strong>Garbage in, garbage out</strong>: datos pobres o sesgados dan modelos pobres o sesgados, y la infrarrepresentación de grupos puede causar daño real.</li>
+      <li><strong>Modelo</strong>: la maquinaria que transforma los datos. En deep learning son <strong>muchas capas</strong> de transformaciones (de ahí <em>deep</em>).</li>
+      <li><strong>Función objetivo (pérdida)</strong>: cuantifica lo bien o mal que lo hace el modelo. Por convención, <strong>menor es mejor</strong>.</li>
+      <li><strong>Algoritmo</strong>: busca los mejores parámetros, normalmente con <strong>descenso del gradiente</strong>, de forma iterativa.</li>
+    </ul>
+
+    <h3 id="t1-dl">Deep learning</h3>
+    <p>Subconjunto del ML basado en redes neuronales de muchas capas. Sus rasgos según las diapositivas:</p>
+    <ul>
+      <li>Las operaciones (incluido gran parte del preprocesado que antes se hacía a mano) <strong>se aprenden conjuntamente</strong> a partir de los datos: sustituye a los modelos «superficiales» del final de las cadenas clásicas.</li>
+      <li>Paso de modelos <strong>paramétricos</strong> simples a modelos casi <strong>no paramétricos</strong>: con pocos datos hay que asumir modelos simplificados; con muchos datos, los modelos flexibles ajustan mejor.</li>
+      <li><strong>Acepta soluciones subóptimas</strong>: progreso rápido probando cosas antes de demostrarlas formalmente.</li>
+    </ul>
+    <div class="callout key"><div class="ct">◆ Idea clave</div><p>Lo que hace especiales a las redes neuronales: <strong>aproximan funciones no lineales complejas</strong>, <strong>aprenden representaciones jerárquicas</strong> y <strong>se adaptan a nuevos datos y tareas</strong>.</p></div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="t1-tipos">
+    <h2 class="sec" data-short="Tipos de problemas"><span class="n">2</span> Tipos de problemas de aprendizaje</h2>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Paradigma</th><th>Qué hay en el dataset</th><th>Qué hace el modelo</th><th>Ejemplo del curso</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Supervisado</strong></td><td>Características <em>y</em> etiquetas</td><td>Predice etiquetas a partir de características</td><td>P0 (regresión), P1–P4 (clasificación MNIST)</td></tr>
+        <tr><td><strong>No supervisado</strong></td><td>Solo características, sin etiquetas</td><td>Descubre estructura o aprende la distribución</td><td>P5 (GAN: genera dígitos sin usar etiquetas)</td></tr>
+        <tr><td><strong>Por refuerzo</strong></td><td>Interacción con un entorno y recompensas</td><td>Aprende una política de acciones</td><td>— (solo se menciona)</td></tr>
+      </tbody>
+    </table></div>
+    <h3 id="t1-supervisado">Variantes del aprendizaje supervisado</h3>
+    <div class="compare">
+      <div><h5>Regresión</h5><p>Predice un <strong>valor continuo</strong> (precio, temperatura, la $Y$ de la P0). Salida lineal + MSE.</p></div>
+      <div><h5>Clasificación</h5><p><strong>Binaria</strong> (par/impar, P2), <strong>multiclase</strong> (10 dígitos, P1) o <strong>probabilística</strong> (devuelve probabilidades por clase).</p></div>
+      <div><h5>Multietiqueta</h5><p>Un ejemplo puede tener <strong>varias etiquetas a la vez</strong> (una foto con «perro» y «playa»).</p></div>
+      <div><h5>Ranking y secuencias</h5><p><strong>Ranking</strong>: puntuar la relevancia de elementos (recomendadores). <strong>Secuencias</strong>: entradas/salidas son secuencias y el contexto importa (etiquetado, traducción).</p></div>
+    </div>
+    <div class="callout exam"><div class="ct">★ Ojo en el examen</div><p>No confundas <strong>multiclase</strong> (una sola clase de entre muchas: softmax) con <strong>multietiqueta</strong> (varias a la vez: una sigmoide por etiqueta). Y una GAN es un ejemplo de aprendizaje <strong>no supervisado</strong> aunque internamente use etiquetas «real/falso».</p></div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="t1-neurona">
+    <h2 class="sec" data-short="La neurona artificial"><span class="n">3</span> La neurona artificial</h2>
+    <p>Una neurona hace dos cosas: una <strong>suma ponderada</strong> de sus entradas más un sesgo, y aplica una <strong>función de activación</strong>.</p>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 620 220" width="620" role="img" aria-label="Neurona artificial">
+        <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <circle cx="50" cy="45" r="20" class="s-box2"/><text x="50" y="50" text-anchor="middle" class="s-mono">x₁</text>
+        <circle cx="50" cy="110" r="20" class="s-box2"/><text x="50" y="115" text-anchor="middle" class="s-mono">x₂</text>
+        <text x="50" y="152" text-anchor="middle" class="s-txt">⋮</text>
+        <circle cx="50" cy="185" r="20" class="s-box2"/><text x="50" y="190" text-anchor="middle" class="s-mono">xₙ</text>
+        <path d="M70 48 L262 104" class="s-line" marker-end="url(#ar3)"/><text x="160" y="66" class="s-mono" style="fill:var(--accent)">w₁</text>
+        <path d="M70 110 L260 110" class="s-line" marker-end="url(#ar3)"/><text x="160" y="104" class="s-mono" style="fill:var(--accent)">w₂</text>
+        <path d="M70 182 L262 117" class="s-line" marker-end="url(#ar3)"/><text x="160" y="162" class="s-mono" style="fill:var(--accent)">wₙ</text>
+        <circle cx="300" cy="110" r="36" class="s-navy"/><text x="300" y="118" text-anchor="middle" class="s-white" style="font:700 24px var(--font)">Σ</text>
+        <text x="300" y="30" text-anchor="middle" class="s-mono">sesgo b</text><path d="M300 36 L300 72" class="s-line s-dash" marker-end="url(#ar3)"/>
+        <path d="M336 110 L398 110" class="s-acc" marker-end="url(#ar3)"/><text x="367" y="100" text-anchor="middle" class="s-mono">z</text>
+        <rect x="400" y="80" width="80" height="60" rx="12" class="s-gold"/><text x="440" y="117" text-anchor="middle" class="s-txt s-bold">f(z)</text>
+        <path d="M480 110 L560 110" class="s-acc" marker-end="url(#ar3)"/><text x="590" y="115" text-anchor="middle" class="s-mono s-bold">a</text>
+        <text x="300" y="175" text-anchor="middle" class="s-mut">z = Σ wᵢxᵢ + b</text><text x="440" y="160" text-anchor="middle" class="s-mut">activación</text>
+      </svg>
+      </div>
+      <figcaption>Una neurona: suma ponderada $z=\mathbf{w}^\top\mathbf{x}+b$ y salida $a=f(z)$.</figcaption>
+    </figure>
+    <div class="formula">$$z=\sum_{i=1}^{n} w_i x_i + b = \mathbf{w}^\top\mathbf{x}+b, \qquad a = f(z)$$</div>
+    <ul>
+      <li><strong>Pesos</strong> $w_i$: cuánto influye cada entrada (una neurona en otra). Son los valores numéricos de las conexiones.</li>
+      <li><strong>Sesgo</strong> $b$: un valor que se suma a la suma ponderada; <strong>desplaza</strong> la función de activación.</li>
+      <li>Pesos y sesgos son los <strong>parámetros aprendibles</strong>. Todo lo demás (tasa de aprendizaje, épocas…) son <strong>hiperparámetros</strong> que fijas tú.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="t1-mlp">
+    <h2 class="sec" data-short="Perceptrón multicapa"><span class="n">4</span> Perceptrón multicapa (MLP)</h2>
+    <p>Al apilar neuronas en <strong>capas</strong> totalmente conectadas (<em>Dense</em>, <em>Linear</em>, <em>fully connected</em>) se obtiene un perceptrón multicapa: capa de entrada → una o varias capas ocultas → capa de salida.</p>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 600 260" width="600" role="img" aria-label="Perceptrón multicapa">
+        <g class="s-thin">
+          <!-- entrada (3) a oculta (4) -->
+          <path d="M90 70 L270 50 M90 70 L270 110 M90 70 L270 170 M90 70 L270 230 M90 140 L270 50 M90 140 L270 110 M90 140 L270 170 M90 140 L270 230 M90 210 L270 50 M90 210 L270 110 M90 210 L270 170 M90 210 L270 230"/>
+          <path d="M270 50 L470 100 M270 110 L470 100 M270 170 L470 100 M270 230 L470 100 M270 50 L470 180 M270 110 L470 180 M270 170 L470 180 M270 230 L470 180"/>
+        </g>
+        <circle cx="90" cy="70" r="20" class="s-box2"/><circle cx="90" cy="140" r="20" class="s-box2"/><circle cx="90" cy="210" r="20" class="s-box2"/>
+        <text x="90" y="75" text-anchor="middle" class="s-mono">x₁</text><text x="90" y="145" text-anchor="middle" class="s-mono">x₂</text><text x="90" y="215" text-anchor="middle" class="s-mono">x₃</text>
+        <g><circle cx="270" cy="50" r="20" class="s-navy2"/><circle cx="270" cy="110" r="20" class="s-navy2"/><circle cx="270" cy="170" r="20" class="s-navy2"/><circle cx="270" cy="230" r="20" class="s-navy2"/></g>
+        <text x="270" y="55" text-anchor="middle" class="s-white" style="font:600 12px var(--font)">Σ f</text><text x="270" y="115" text-anchor="middle" class="s-white" style="font:600 12px var(--font)">Σ f</text><text x="270" y="175" text-anchor="middle" class="s-white" style="font:600 12px var(--font)">Σ f</text><text x="270" y="235" text-anchor="middle" class="s-white" style="font:600 12px var(--font)">Σ f</text>
+        <circle cx="470" cy="100" r="22" class="s-navy"/><circle cx="470" cy="180" r="22" class="s-navy"/>
+        <text x="470" y="105" text-anchor="middle" class="s-white" style="font:600 12px var(--font)">ŷ₁</text><text x="470" y="185" text-anchor="middle" class="s-white" style="font:600 12px var(--font)">ŷ₂</text>
+        <text x="90" y="22" text-anchor="middle" class="s-txt s-bold">Entrada</text><text x="270" y="18" text-anchor="middle" class="s-txt s-bold">Oculta (ReLU/tanh)</text><text x="470" y="60" text-anchor="middle" class="s-txt s-bold">Salida</text>
+        <text x="180" y="255" text-anchor="middle" class="s-mut">W₁ (3×4), b₁</text><text x="380" y="255" text-anchor="middle" class="s-mut">W₂ (4×2), b₂</text>
+        <text x="540" y="145" class="s-mut">lineal / sigmoide /</text><text x="540" y="160" class="s-mut">softmax</text>
+      </svg>
+      </div>
+      <figcaption>Cada flecha es un peso. Entre dos capas de $n$ y $m$ neuronas hay $n\cdot m$ pesos + $m$ sesgos.</figcaption>
+    </figure>
+
+    <div class="formula">$$\text{parámetros de una capa Dense} = n_{\text{entrada}}\cdot n_{\text{salida}} + n_{\text{salida}}$$</div>
+    <p>Ejemplo de la Práctica 1: <code>Flatten</code> (784) → <code>Dense(128)</code> → <code>Dense(10)</code> tiene $784\cdot128+128 = 100\,480$ y $128\cdot10+10=1\,290$ parámetros: <strong>101 770</strong> en total. <code>Flatten</code> no tiene parámetros: solo cambia la forma.</p>
+
+    <div class="callout key"><div class="ct">◆ ¿Por qué hace falta la no linealidad?</div>
+      <p>Si todas las capas fuesen lineales, la red entera sería una sola función lineal: $W_2(W_1x+b_1)+b_2 = (W_2W_1)x + (W_2b_1+b_2)$. Apilar capas no serviría de nada. La activación no lineal de las capas ocultas es lo que permite aproximar curvas, fronteras complejas, etc.</p></div>
+
+    <h3 id="t1-pasos">Pasos para implementar una red neuronal</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>1 · Procesado de datos</th><th>2 · Diseño de la red</th><th>3 · Entrenamiento</th><th>4 · Evaluación</th></tr></thead>
+      <tbody><tr>
+        <td>Preprocesado, filtrado, <strong>normalización</strong>, <strong>partición</strong> (train/val/test)</td>
+        <td>Arquitectura, capas, tipos de neurona, <strong>funciones de activación</strong></td>
+        <td>Algoritmo de aprendizaje, <strong>tasa de aprendizaje</strong>, <strong>épocas</strong>, validación</td>
+        <td>Entrenamiento y test, <strong>métricas</strong></td>
+      </tr></tbody>
+    </table></div>
+
+    <p>En Keras, todo esto cabe en cuatro llamadas (ejemplo de las diapositivas):</p>
+<pre data-code="Keras: construir → compilar → entrenar → evaluar">
+model = Sequential([
+    Dense(10, input_dim=3, activation='relu'),
+    Dense(1, activation='sigmoid')])
+
+model.compile(optimizer='sgd',
+              loss='mean_squared_error',
+              metrics=['accuracy'])
+
+model.fit(data, target, epochs=10, batch_size=16, validation_split=.1)
+model.evaluate(testdata, testtarget)
+</pre>
+    <p class="code-note"><code>Sequential</code> = pila de capas en orden. <code>compile</code> fija optimizador, pérdida y métricas. <code>fit</code> entrena con épocas y lote; <code>validation_split=.1</code> aparta el 10 % del entrenamiento como validación. <code>evaluate</code> mide en test.</p>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="t1-activ">
+    <h2 class="sec" data-short="Funciones de activación"><span class="n">5</span> Funciones de activación</h2>
+    <div class="fig-row">
+      <figure class="diagram">
+        <svg viewBox="0 0 200 140" width="200" role="img" aria-label="Sigmoide"><path d="M10 65 H190 M100 10 V125" class="s-grid"/><path d="M10 25.7 H190" class="s-thin s-dash"/><path d="M10,103.8 L16,103.5 L23,103.2 L29,102.8 L36,102.1 L42,101.3 L49,100.0 L55,98.3 L61,96.0 L68,93.0 L74,89.1 L81,84.2 L87,78.5 L94,71.9 L100,65.0 L106,58.1 L113,51.5 L119,45.8 L126,40.9 L132,37.0 L139,34.0 L145,31.7 L151,30.0 L158,28.7 L164,27.9 L171,27.2 L177,26.8 L184,26.5 L190,26.2" class="s-acc"/><path d="M10 104.3 H190" class="s-grid"/><text x="14" y="22" class="s-mut">1</text><text x="14" y="117" class="s-mut">0</text><text x="104" y="60" class="s-mut">0,5</text></svg>
+        <figcaption><strong>Sigmoide (logística)</strong> · $\sigma(x)=\frac{1}{1+e^{-x}}$ · rango $(0,1)$</figcaption>
+      </figure>
+      <figure class="diagram">
+        <svg viewBox="0 0 200 140" width="200" role="img" aria-label="Tangente hiperbólica"><path d="M10 65 H190 M100 10 V125" class="s-grid"/><path d="M10 19.2 H190 M10 110.8 H190" class="s-thin s-dash"/><path d="M10,110.8 L16,110.8 L23,110.8 L29,110.8 L36,110.8 L42,110.7 L49,110.5 L55,110.2 L61,109.6 L68,108.3 L74,105.9 L81,101.2 L87,93.1 L94,80.7 L100,65.0 L106,49.3 L113,36.9 L119,28.8 L126,24.1 L132,21.7 L139,20.4 L145,19.8 L151,19.5 L158,19.3 L164,19.2 L171,19.2 L177,19.2 L184,19.2 L190,19.2" class="s-acc"/><text x="14" y="15" class="s-mut">1</text><text x="14" y="125" class="s-mut">−1</text></svg>
+        <figcaption><strong>tanh</strong> · $\frac{e^x-e^{-x}}{e^x+e^{-x}}$ · rango $(-1,1)$, centrada en 0</figcaption>
+      </figure>
+      <figure class="diagram">
+        <svg viewBox="0 0 200 140" width="200" role="img" aria-label="ReLU"><path d="M10 101.7 H190 M100 10 V125" class="s-grid"/><path d="M10 101.7 L100 101.7 L190 10" class="s-acc"/><text x="104" y="118" class="s-mut">0</text></svg>
+        <figcaption><strong>ReLU</strong> (rampa) · $\max(0,x)$ · rango $[0,\infty)$</figcaption>
+      </figure>
+      <figure class="diagram">
+        <svg viewBox="0 0 200 140" width="200" role="img" aria-label="Leaky ReLU"><path d="M10 96.8 H190 M100 10 V125" class="s-grid"/><path d="M10 114.2 L100 96.8 L190 10" class="s-acc"/><text x="20" y="128" class="s-mut">pendiente 0,2</text></svg>
+        <figcaption><strong>LeakyReLU</strong> · $x$ si $x&gt;0$, $\alpha x$ si no (discriminador de la P5, $\alpha=0{,}2$)</figcaption>
+      </figure>
+    </div>
+
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Función</th><th>Fórmula</th><th>Derivada</th><th>Rango</th><th>Uso típico</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Lineal / identidad</strong></td><td>$f(x)=x$</td><td>$1$</td><td>$\mathbb{R}$</td><td>Salida de <strong>regresión</strong> (P0)</td></tr>
+        <tr><td><strong>Sigmoide</strong></td><td>$\frac{1}{1+e^{-x}}$</td><td>$\sigma(1-\sigma)$</td><td>$(0,1)$</td><td>Salida <strong>binaria</strong> (P2), discriminador GAN</td></tr>
+        <tr><td><strong>tanh</strong></td><td>$\frac{e^x-e^{-x}}{e^x+e^{-x}}$</td><td>$1-\tanh^2$</td><td>$(-1,1)$</td><td>Capa oculta de la P0, LeNet, salida del generador GAN</td></tr>
+        <tr><td><strong>ReLU</strong></td><td>$\max(0,x)$</td><td>$1$ si $x&gt;0$; $0$ si $x&lt;0$</td><td>$[0,\infty)$</td><td>Capas ocultas modernas (P1–P4)</td></tr>
+        <tr><td><strong>Softmax</strong></td><td>$\frac{e^{z_k}}{\sum_j e^{z_j}}$</td><td>—</td><td>$(0,1)$, suman 1</td><td>Salida <strong>multiclase</strong> (P1, P3)</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>La <strong>sigmoide</strong> es la versión suave del escalón e infinitamente derivable. La <strong>tanh</strong> es una sigmoide desplazada y escalada: $\tanh(x)=2\sigma(2x)-1$.</li>
+      <li>Ambas <strong>se saturan</strong>: para $|x|$ grande su derivada es casi 0, y al multiplicar muchas derivadas pequeñas en la retropropagación el gradiente <strong>se desvanece</strong> (<em>vanishing gradient</em>). Por eso LeNet (tanh) entrena peor que redes con ReLU.</li>
+      <li><strong>ReLU</strong> es de implementación trivial y no se satura para $x&gt;0$, lo que acelera el entrenamiento (fue clave en AlexNet). No es derivable en $0$ (en la práctica se toma 0 o 1) y si una neurona queda siempre en la zona negativa deja de aprender («ReLU muerta»); <strong>LeakyReLU</strong> lo evita con una pequeña pendiente negativa.</li>
+    </ul>
+    <div class="callout exam"><div class="ct">★ Ojo en el examen</div><p>Deriva siempre en función de la salida: si $a=\tanh(z)$ entonces $\frac{da}{dz}=1-a^2$ (es lo que usa la P0); si $a=\sigma(z)$ entonces $\frac{da}{dz}=a(1-a)$. Confundirlas es un error clásico.</p></div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="t1-perdida">
+    <h2 class="sec" data-short="Pérdidas y capa de salida"><span class="n">6</span> Funciones de pérdida y capa de salida</h2>
+    <p>La activación de la <strong>última capa</strong> y la <strong>pérdida</strong> se eligen juntas, según el tipo de problema. Esta tabla resume las tres prácticas del tema:</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Problema</th><th>Neuronas de salida</th><th>Activación salida</th><th>Pérdida</th><th>Predicción</th><th>Práctica</th></tr></thead>
+      <tbody>
+        <tr><td>Regresión</td><td>1 (por variable)</td><td><strong>Lineal</strong></td><td><strong>MSE</strong></td><td>el valor $\hat y$</td><td>P0</td></tr>
+        <tr><td>Clasificación binaria</td><td>1</td><td><strong>Sigmoide</strong></td><td><strong>Binary cross-entropy</strong></td><td>$\hat p\ge 0{,}5 \Rightarrow 1$</td><td>P2</td></tr>
+        <tr><td>Multiclase (etiquetas enteras)</td><td>$K$ (=10)</td><td><strong>Softmax</strong></td><td><strong>Sparse</strong> categorical cross-entropy</td><td>$\arg\max_k \hat p_k$</td><td>P1, P3</td></tr>
+        <tr><td>Multiclase (one-hot)</td><td>$K$</td><td>Softmax</td><td>Categorical cross-entropy</td><td>$\arg\max$</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <div class="formula-grid">
+      <div class="formula">$$\text{MSE}=\frac1N\sum_{i}(\hat y_i-y_i)^2$$<small>Penaliza mucho los errores grandes; derivable.</small></div>
+      <div class="formula">$$\text{BCE}=-\frac1N\sum_i\big[y_i\log\hat p_i+(1-y_i)\log(1-\hat p_i)\big]$$<small>Binaria; la misma que usa el discriminador de una GAN.</small></div>
+      <div class="formula">$$\text{CE}=-\log \hat p_{y}$$<small>Multiclase: solo cuenta la probabilidad de la clase correcta.</small></div>
+    </div>
+    <div class="callout warn"><div class="ct">✕ Error típico</div><p>Usar <code>categorical_crossentropy</code> con etiquetas enteras (0–9) en vez de one-hot, o una salida <code>sigmoid</code> en un problema de regresión con valores negativos (la sigmoide solo produce $(0,1)$, así que nunca podría predecir $-0{,}3$). En PyTorch, <code>nn.CrossEntropyLoss</code> recibe <strong>logits</strong> (ya incluye el softmax): no pongas softmax antes.</p></div>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="t1-backprop">
+    <h2 class="sec" data-short="Descenso del gradiente y backprop"><span class="n">7</span> Cómo aprende una red: descenso del gradiente y retropropagación</h2>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 200" width="640" role="img" aria-label="Ciclo de entrenamiento">
+        <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <rect x="20" y="70" width="120" height="56" rx="12" class="s-soft"/><text x="80" y="94" text-anchor="middle" class="s-txt s-bold">1 · Forward</text><text x="80" y="112" text-anchor="middle" class="s-mut">x → ŷ</text>
+        <rect x="180" y="70" width="120" height="56" rx="12" class="s-soft"/><text x="240" y="94" text-anchor="middle" class="s-txt s-bold">2 · Pérdida</text><text x="240" y="112" text-anchor="middle" class="s-mut">L(ŷ, y)</text>
+        <rect x="340" y="70" width="130" height="56" rx="12" class="s-gold"/><text x="405" y="94" text-anchor="middle" class="s-txt s-bold">3 · Backward</text><text x="405" y="112" text-anchor="middle" class="s-mut">∂L/∂θ (regla cadena)</text>
+        <rect x="510" y="70" width="120" height="56" rx="12" class="s-navy"/><text x="570" y="94" text-anchor="middle" class="s-white s-bold" style="font-size:13px;font-family:var(--font)">4 · Actualizar</text><text x="570" y="112" text-anchor="middle" style="fill:#c4d4f2;font-size:11px;font-family:var(--font)">θ ← θ − η∇L</text>
+        <path d="M140 98 H176" class="s-acc" marker-end="url(#ar4)"/><path d="M300 98 H336" class="s-acc" marker-end="url(#ar4)"/><path d="M470 98 H506" class="s-acc" marker-end="url(#ar4)"/>
+        <path d="M570 128 C570 180 80 180 80 130" class="s-goldl s-dash" marker-end="url(#ar4)"/>
+        <text x="325" y="190" text-anchor="middle" class="s-mut">se repite para cada lote (iteración); recorrer todos los datos = 1 época</text>
+        <text x="325" y="40" text-anchor="middle" class="s-mut">optimizer.zero_grad() → loss.backward() → optimizer.step()   (PyTorch)</text>
+      </svg>
+      </div>
+      <figcaption>Ciclo de entrenamiento. En Keras lo hace <code>fit</code>; en PyTorch se escribe a mano (P4, P5).</figcaption>
+    </figure>
+
+    <h3 id="t1-gd">Descenso del gradiente</h3>
+    <p>El gradiente $\nabla_\theta L$ apunta hacia donde <strong>más crece</strong> la pérdida. Para reducirla, se da un paso en sentido contrario, de tamaño controlado por la <strong>tasa de aprendizaje</strong> $\eta$:</p>
+    <div class="formula">$$\theta \leftarrow \theta - \eta\,\nabla_\theta L(\theta)$$</div>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 190" width="640" role="img" aria-label="Efecto de la tasa de aprendizaje">
+        <g transform="translate(0,0)">
+          <path d="M20 30 Q110 230 200 30" class="s-line"/><text x="110" y="182" text-anchor="middle" class="s-txt s-bold">η muy pequeña</text>
+          <circle cx="36" cy="58" r="4" class="s-accf"/><circle cx="44" cy="72" r="4" class="s-accf"/><circle cx="52" cy="85" r="4" class="s-accf"/><circle cx="60" cy="96" r="4" class="s-accf"/><circle cx="68" cy="106" r="4" class="s-accf"/>
+          <text x="110" y="160" text-anchor="middle" class="s-mut">converge muy lento</text>
+        </g>
+        <g transform="translate(215,0)">
+          <path d="M20 30 Q110 230 200 30" class="s-line"/><text x="110" y="182" text-anchor="middle" class="s-txt s-bold">η adecuada</text>
+          <circle cx="36" cy="58" r="4" class="s-accf"/><circle cx="62" cy="99" r="4" class="s-accf"/><circle cx="84" cy="121" r="4" class="s-accf"/><circle cx="102" cy="129" r="4" class="s-accf"/><circle cx="110" cy="130" r="5" style="fill:var(--gold)"/>
+          <text x="110" y="160" text-anchor="middle" class="s-mut">llega al mínimo</text>
+        </g>
+        <g transform="translate(430,0)">
+          <path d="M20 30 Q110 230 200 30" class="s-line"/><text x="110" y="182" text-anchor="middle" class="s-txt s-bold">η demasiado grande</text>
+          <path d="M44 72 L180 64 L30 46 L196 36" class="s-badl"/><circle cx="44" cy="72" r="4" class="s-accf"/><circle cx="180" cy="64" r="4" class="s-accf"/><circle cx="30" cy="46" r="4" class="s-accf"/>
+          <text x="110" y="160" text-anchor="middle" class="s-mut">oscila o diverge</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Una tasa muy baja tarda mucho; una tasa muy alta salta de un lado a otro del valle y puede divergir.</figcaption>
+    </figure>
+
+    <h3 id="t1-chain">Retropropagación (regla de la cadena)</h3>
+    <p>La retropropagación calcula eficientemente $\partial L/\partial\theta$ para todos los pesos aplicando la <strong>regla de la cadena</strong> desde la salida hacia la entrada, reutilizando los valores guardados del paso hacia delante. Para la red de la P0 ($1\to12\to1$, tanh y salida lineal, MSE), con $X$ de forma $(n,1)$:</p>
+    <div class="two-col">
+      <div class="formula" style="text-align:left">
+        <strong>Hacia delante</strong>
+        $$z_1 = XW_1+b_1\;\;(n,12)$$
+        $$a_1=\tanh(z_1)\;\;(n,12)$$
+        $$\hat y = a_1W_2+b_2\;\;(n,1)$$
+      </div>
+      <div class="formula" style="text-align:left">
+        <strong>Hacia atrás</strong>
+        $$\delta_{out}=\tfrac{2}{N}(\hat y - y)\;\;(n,1)$$
+        $$\tfrac{\partial L}{\partial W_2}=a_1^\top\delta_{out},\;\; \tfrac{\partial L}{\partial b_2}=\textstyle\sum\delta_{out}$$
+        $$\delta_{hid}=(\delta_{out}W_2^\top)\odot(1-a_1^2)\;\;(n,12)$$
+        $$\tfrac{\partial L}{\partial W_1}=X^\top\delta_{hid},\;\; \tfrac{\partial L}{\partial b_1}=\textstyle\sum\delta_{hid}$$
+      </div>
+    </div>
+    <div class="callout key"><div class="ct">◆ Por qué aparecen transpuestas</div><p>Las transpuestas permiten <strong>sumar la contribución de todos los ejemplos</strong> y que cada gradiente tenga exactamente la forma de su matriz de pesos: $a_1^\top$ es $(12,n)$ y $\delta_{out}$ es $(n,1)$, así que $a_1^\top\delta_{out}$ es $(12,1)$, igual que $W_2$. El símbolo $\odot$ es el producto elemento a elemento (en NumPy, <code>*</code>; el producto matricial es <code>@</code>).</p></div>
+
+    <h3 id="t1-init">Inicialización de pesos</h3>
+    <p>Los pesos <strong>no pueden empezar todos a cero</strong> (ni todos iguales): todas las neuronas de una capa recibirían el mismo gradiente y aprenderían exactamente lo mismo (simetría). Los <strong>sesgos sí pueden empezar a cero</strong>. La inicialización <strong>Xavier/Glorot</strong> escala los valores aleatorios según el número de entradas y salidas de la capa para que las activaciones no se hagan ni muy grandes ni muy pequeñas al principio:</p>
+    <div class="formula">$$W\sim\mathcal U\!\left(-\sqrt{\tfrac{6}{\text{fan}_{in}+\text{fan}_{out}}},\;+\sqrt{\tfrac{6}{\text{fan}_{in}+\text{fan}_{out}}}\right)$$</div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="t1-optim">
+    <h2 class="sec" data-short="Optimizadores"><span class="n">8</span> Algoritmos de aprendizaje (optimizadores)</h2>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Optimizador</th><th>Idea</th><th>Ventaja / inconveniente</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SGD</strong> (Stochastic Gradient Descent)</td><td>Actualiza con el gradiente de un <strong>lote pequeño</strong></td><td>Actualizaciones rápidas pero con <strong>más varianza</strong>; con la tasa por defecto converge lento (P1)</td></tr>
+        <tr><td><strong>AdaGrad</strong> (Adaptive Gradient)</td><td>Tasa de aprendizaje <strong>por parámetro</strong>; acumula gradientes al cuadrado</td><td>Pasos más pequeños para los pesos que se actualizan a menudo; la tasa puede hacerse demasiado pequeña</td></tr>
+        <tr><td><strong>RMSprop</strong> (Root Mean Square Propagation)</td><td><strong>Media móvil</strong> de los gradientes al cuadrado</td><td>Evita que la tasa se haga demasiado pequeña (arregla AdaGrad)</td></tr>
+        <tr><td><strong>Adam</strong> (Adaptive Moment Estimation)</td><td>Combina <strong>momentum</strong> (1.er momento) y <strong>RMSprop</strong> (2.º momento)</td><td>Más equilibrado y eficiente con datasets grandes. El que gana en P1 y se usa en P2–P5</td></tr>
+      </tbody>
+    </table></div>
+    <p>Adam, tal y como se programa a mano en la P0 ($\beta_1=0{,}9$, $\beta_2=0{,}999$, $\varepsilon=10^{-8}$):</p>
+    <div class="formula">$$m_t=\beta_1m_{t-1}+(1-\beta_1)g_t\qquad v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2$$
+    $$\hat m_t=\frac{m_t}{1-\beta_1^t}\qquad \hat v_t=\frac{v_t}{1-\beta_2^t}\qquad \theta_t=\theta_{t-1}-\eta\frac{\hat m_t}{\sqrt{\hat v_t}+\varepsilon}$$</div>
+    <ul>
+      <li>$m$ estima la <strong>dirección persistente</strong> del gradiente (momentum).</li>
+      <li>$v$ adapta el tamaño del paso a la <strong>magnitud reciente</strong> de los gradientes.</li>
+      <li>$\hat m,\hat v$ <strong>corrigen el sesgo inicial</strong> (empiezan en 0 y, sin corrección, los primeros pasos serían demasiado pequeños).</li>
+      <li>$\varepsilon$ evita <strong>dividir por cero</strong>.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ 9 -->
+  <section id="t1-hiper">
+    <h2 class="sec" data-short="Hiperparámetros"><span class="n">9</span> Parámetros de entrenamiento: épocas, lote y tasa</h2>
+    <div class="compare">
+      <div><h5>Ajustes (hiperparámetros, los eliges tú)</h5><ul>
+        <li><strong>Learning rate</strong>: cuánto se ajustan los parámetros en cada iteración.</li>
+        <li><strong>Épocas</strong>: pasadas completas por todo el dataset.</li>
+        <li><strong>Batch size</strong>: nº de ejemplos usados en cada iteración.</li>
+        <li><strong>Conjunto de validación</strong>: subconjunto del entrenamiento usado para decidir cuándo parar.</li></ul></div>
+      <div><h5>Variables aprendibles (las ajusta el optimizador)</h5><ul>
+        <li><strong>Pesos</strong>: cuánto influye una neurona en otra.</li>
+        <li><strong>Sesgos</strong>: desplazan la salida de la activación.</li></ul></div>
+    </div>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 120" width="640" role="img" aria-label="Épocas, lotes e iteraciones">
+        <text x="10" y="20" class="s-txt s-bold">1 época = recorrer los N ejemplos una vez</text>
+        <g>
+          <rect x="10" y="34" width="120" height="34" rx="6" class="s-soft"/><text x="70" y="56" text-anchor="middle" class="s-mono">lote 1</text>
+          <rect x="134" y="34" width="120" height="34" rx="6" class="s-soft"/><text x="194" y="56" text-anchor="middle" class="s-mono">lote 2</text>
+          <rect x="258" y="34" width="120" height="34" rx="6" class="s-soft"/><text x="318" y="56" text-anchor="middle" class="s-mono">lote 3</text>
+          <text x="400" y="56" class="s-txt">…</text>
+          <rect x="430" y="34" width="120" height="34" rx="6" class="s-soft"/><text x="490" y="56" text-anchor="middle" class="s-mono">lote ⌈N/B⌉</text>
+          <rect x="554" y="34" width="60" height="34" rx="6" class="s-gold"/><text x="584" y="56" text-anchor="middle" class="s-mono">resto</text>
+        </g>
+        <text x="10" y="92" class="s-mut">cada lote = 1 iteración = 1 actualización de pesos · con N = 60 000: B = 32 → 1 875 iteraciones; B = 128 → 469 (468,75 redondeado hacia arriba)</text>
+        <text x="10" y="110" class="s-mut">«batch» completo (B = N, P0) → 1 actualización por época · B = 1 → SGD puro</text>
+      </svg>
+      </div>
+    </figure>
+    <div class="formula">$$\text{iteraciones por época}=\left\lceil \frac{N}{B}\right\rceil \qquad \text{actualizaciones totales} = \text{épocas}\times\left\lceil \frac{N}{B}\right\rceil$$</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Hiperparámetro</th><th>Si es demasiado pequeño</th><th>Si es demasiado grande</th></tr></thead>
+      <tbody>
+        <tr><td>Tasa de aprendizaje</td><td>Converge muy lento</td><td>Oscila o diverge</td></tr>
+        <tr><td>Épocas</td><td>Subajuste (no aprende lo suficiente)</td><td>Más tiempo y riesgo de sobreajuste</td></tr>
+        <tr><td>Batch size</td><td>Gradiente más ruidoso, muchas actualizaciones, más lento por época</td><td>Menos actualizaciones por época, aprovecha mejor el hardware, puede generalizar algo peor</td></tr>
+        <tr><td>Neuronas ocultas</td><td>Subajuste (poca capacidad)</td><td>Sobreajuste y más coste</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============================================================ 10 -->
+  <section id="t1-gen">
+    <h2 class="sec" data-short="Generalización y regularización"><span class="n">10</span> Generalización: train, validación, test y sobreajuste</h2>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 70" width="640" role="img" aria-label="Partición de datos">
+        <rect x="10" y="12" width="420" height="34" rx="6" class="s-navy2"/><text x="220" y="34" text-anchor="middle" class="s-white s-bold" style="font-size:13px;font-family:var(--font)">Entrenamiento: ajustar pesos</text>
+        <rect x="434" y="12" width="90" height="34" rx="6" class="s-gold"/><text x="479" y="34" text-anchor="middle" class="s-txt s-bold">Validación</text>
+        <rect x="528" y="12" width="102" height="34" rx="6" class="s-okf"/><text x="579" y="34" text-anchor="middle" class="s-txt s-bold">Test</text>
+        <text x="220" y="64" text-anchor="middle" class="s-mut">MNIST P2–P4: 54 000</text><text x="479" y="64" text-anchor="middle" class="s-mut">6 000 · elegir</text><text x="579" y="64" text-anchor="middle" class="s-mut">10 000 · una vez</text>
+      </svg>
+      </div>
+    </figure>
+    <ul>
+      <li><strong>Entrenamiento</strong>: para ajustar los pesos.</li>
+      <li><strong>Validación</strong>: para elegir hiperparámetros/arquitectura y para la <strong>parada temprana</strong>.</li>
+      <li><strong>Test</strong>: se usa <strong>una sola vez al final</strong> para estimar el rendimiento en datos nuevos. Si eliges la configuración mirando el test, tu estimación final es <strong>optimista</strong> (el test deja de ser independiente). La P1 lo hace porque el enunciado lo pide; la P2–P4 lo corrigen eligiendo por validación.</li>
+    </ul>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 560 230" width="560" role="img" aria-label="Curvas de sobreajuste">
+        <path d="M50 20 V190 H530" class="s-line"/>
+        <text x="20" y="110" class="s-mut" transform="rotate(-90 20 110)">pérdida</text><text x="290" y="215" text-anchor="middle" class="s-mut">épocas →</text>
+        <path d="M55 40 C120 130 200 160 520 180" class="s-acc"/>
+        <path d="M55 48 C120 130 190 150 250 148 C330 146 420 120 520 80" class="s-goldl"/>
+        <path d="M250 30 V190" class="s-thin s-dash"/>
+        <circle cx="250" cy="148" r="5" style="fill:var(--gold)"/>
+        <text x="256" y="44" class="s-txt s-bold">parada temprana</text><text x="256" y="60" class="s-mut">(mínimo de val_loss)</text>
+        <text x="110" y="190" class="s-mut">← subajuste</text><text x="390" y="190" class="s-mut">sobreajuste →</text>
+        <text x="455" y="176" class="s-txt" style="fill:var(--accent)">train</text><text x="455" y="76" class="s-txt" style="fill:var(--warn)">validación</text>
+      </svg>
+      </div>
+      <figcaption>La pérdida de entrenamiento siempre baja; la de validación baja y luego sube cuando el modelo empieza a memorizar.</figcaption>
+    </figure>
+    <div class="compare">
+      <div><h5>Subajuste (<em>underfitting</em>)</h5><p>Error alto <strong>en train y en test</strong>. Modelo demasiado simple o poco entrenado (p. ej. SGD con 5 épocas en la P1, o 10 neuronas y 1 000 épocas en la P0 de un compañero).</p></div>
+      <div><h5>Sobreajuste (<em>overfitting</em>)</h5><p>Error <strong>muy bajo en train y claramente peor en test</strong>. La <strong>brecha</strong> $\text{acc}_{train}-\text{acc}_{test}$ grande es la señal.</p></div>
+    </div>
+    <h3 id="t1-reg">Herramientas contra el sobreajuste</h3>
+    <ul>
+      <li><strong>Parada temprana</strong> (<code>EarlyStopping(monitor='val_loss', patience=4, restore_best_weights=True)</code>): para cuando la validación deja de mejorar y recupera los mejores pesos.</li>
+      <li><strong>Dropout</strong>: apaga al azar una fracción de neuronas <strong>solo durante el entrenamiento</strong>; obliga a aprender características redundantes. En inferencia está desactivado.</li>
+      <li><strong>Regularización L2</strong> (<em>weight decay</em>): penaliza pesos grandes → soluciones más suaves. En la P0 aparece como el término <code>self.l2 * self.W</code> sumado al gradiente.</li>
+      <li><strong>Más datos</strong> o <em>data augmentation</em>; modelos más pequeños.</li>
+    </ul>
+    <div class="callout warn"><div class="ct">✕ Fuga de información (data leakage)</div><p>Las estadísticas de normalización (media, desviación) se calculan <strong>solo con el entrenamiento</strong> y se reutilizan en test. Recalcularlas con test, o entrenar con test, contamina la evaluación.</p></div>
+    <h3 id="t1-repro">Reproducibilidad</h3>
+    <p>Para comparar configuraciones de forma justa hay que fijar las fuentes de aleatoriedad: inicialización de pesos, barajado de lotes, Dropout. En las prácticas: <code>np.random.default_rng(seed)</code> (P0), <code>tf.keras.utils.set_random_seed(42)</code> + <code>tf.config.experimental.enable_op_determinism()</code> (P1–P3), <code>torch.manual_seed</code> + <code>torch.Generator().manual_seed</code> en el <code>DataLoader</code> (P4–P5). Se <strong>restablece la semilla antes de construir cada modelo</strong> para que todos partan de condiciones comparables.</p>
+  </section>
+
+  <!-- ============================================================ 11 -->
+  <section id="t1-metricas">
+    <h2 class="sec" data-short="Métricas"><span class="n">11</span> Métricas de evaluación</h2>
+    <div class="two-col">
+      <div>
+        <h4>Regresión (P0)</h4>
+        <ul>
+          <li><strong>MSE</strong> $=\frac1N\sum(y-\hat y)^2$</li>
+          <li><strong>RMSE</strong> $=\sqrt{\text{MSE}}$, en las <strong>mismas unidades que $y$</strong>.</li>
+          <li><strong>$R^2$</strong> $=1-\frac{SSE}{SST}=1-\frac{\sum(y-\hat y)^2}{\sum(y-\bar y)^2}$. Compara con predecir siempre la media: $1$ = perfecto, $0$ = como la media, $&lt;0$ = peor que la media.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Clasificación (P1–P4)</h4>
+        <ul>
+          <li><strong>Accuracy</strong> $=\frac{\text{aciertos}}{N}$</li>
+          <li><strong>Errores</strong> $=N-\text{aciertos}$ = suma de las celdas <strong>fuera de la diagonal</strong> de la matriz de confusión.</li>
+          <li><strong>Matriz de confusión</strong> $C_{ij}$: nº de ejemplos de clase real $i$ predichos como $j$. Diagonal = aciertos.</li>
+          <li><strong>Brecha de generalización</strong> = acc. train − acc. test (o val).</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 420 210" width="420" role="img" aria-label="Matriz de confusión de la práctica 2">
+        <text x="250" y="18" text-anchor="middle" class="s-txt s-bold">Predicción</text>
+        <text x="190" y="42" text-anchor="middle" class="s-txt">Par</text><text x="310" y="42" text-anchor="middle" class="s-txt">Impar</text>
+        <text x="30" y="125" class="s-txt s-bold" transform="rotate(-90 30 125)">Real</text>
+        <text x="100" y="95" text-anchor="end" class="s-txt">Par</text><text x="100" y="165" text-anchor="end" class="s-txt">Impar</text>
+        <rect x="130" y="55" width="120" height="66" rx="6" class="s-navy"/><text x="190" y="94" text-anchor="middle" class="s-white s-bold" style="font:700 18px var(--font-mono)">4857</text>
+        <rect x="250" y="55" width="120" height="66" rx="6" class="s-badf"/><text x="310" y="94" text-anchor="middle" class="s-mono s-bold" style="font-size:16px">69</text>
+        <rect x="130" y="121" width="120" height="66" rx="6" class="s-badf"/><text x="190" y="160" text-anchor="middle" class="s-mono s-bold" style="font-size:16px">75</text>
+        <rect x="250" y="121" width="120" height="66" rx="6" class="s-navy"/><text x="310" y="160" text-anchor="middle" class="s-white s-bold" style="font:700 18px var(--font-mono)">4999</text>
+        <text x="250" y="204" text-anchor="middle" class="s-mut">aciertos = 4857 + 4999 = 9856 · errores = 69 + 75 = 144 · acc = 98,56 %</text>
+      </svg>
+      </div>
+      <figcaption>Matriz de confusión de test del modelo final de la P2 (filas = real, columnas = predicción).</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================================================ 12 -->
+  <section id="t1-capas">
+    <h2 class="sec" data-short="Capas y frameworks"><span class="n">12</span> Tipos de capas y frameworks</h2>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Capa</th><th>Qué hace</th><th>¿Parámetros?</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Lineal / Dense</strong></td><td>Suma ponderada de toda la entrada; con la activación aprende patrones complejos</td><td>Sí</td></tr>
+        <tr><td><strong>Convolucional</strong></td><td>Aplica filtros; captura rasgos espaciales (bordes, texturas) → Tema 2</td><td>Sí</td></tr>
+        <tr><td><strong>Recurrente</strong></td><td>Mantiene un estado entre pasos de tiempo; datos secuenciales (series, lenguaje)</td><td>Sí</td></tr>
+        <tr><td><strong>Dropout</strong></td><td>Apaga al azar una fracción de neuronas en entrenamiento; previene el sobreajuste</td><td>No</td></tr>
+        <tr><td><strong>Pooling</strong></td><td>Reduce las dimensiones espaciales</td><td>No</td></tr>
+        <tr><td><strong>Padding</strong></td><td>Aumenta las dimensiones espaciales (rellena bordes)</td><td>No</td></tr>
+        <tr><td><strong>Normalización</strong></td><td>Normaliza la entrada (p. ej. restar la media del lote y dividir por su desviación)</td><td>Sí (γ, β en BatchNorm)</td></tr>
+        <tr><td><strong>Transformación</strong></td><td>Flatten, Reshape… cambian la forma</td><td>No</td></tr>
+      </tbody>
+    </table></div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Framework</th><th>Origen</th><th>Rasgos (diapositivas)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>TensorFlow</strong></td><td>Google</td><td>Python, gran comunidad y muy popular, codificación extensa</td></tr>
+        <tr><td><strong>PyTorch</strong></td><td>Facebook (Meta)</td><td>Python, <strong>arquitectura dinámica</strong></td></tr>
+        <tr><td><strong>Keras</strong></td><td>—</td><td><strong>API de alto nivel</strong> sobre TensorFlow, Theano, CNTK</td></tr>
+        <tr><td>CNTK</td><td>Microsoft</td><td>Cognitive Toolkit; Python, C#, C++</td></tr>
+        <tr><td>MXNet</td><td>Apache</td><td>Muchos lenguajes (Python, C++, R, Julia, JS, Scala, Go), multi-GPU</td></tr>
+        <tr><td>DeepLearning4J</td><td>—</td><td>Java, Hadoop y Spark</td></tr>
+      </tbody>
+    </table></div>
+    <div class="mini-quiz"><p><strong>¿Lo tienes?</strong> Practica las preguntas de teoría del Tema 1.</p><a class="btn btn-solid" href="../test.html#tema=T1&amp;tipo=teoria">Test de teoría T1 →</a></div>
+  </section>
+
+  <!-- ============================================================ PRÁCTICA 0 -->
+  <div class="part-title" data-part="Parte II · Prácticas"><div><span>Parte II</span><h2>Prácticas del tema</h2></div></div>
+
+  <section id="p0">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Práctica 0 · Perceptrón NumPy">Práctica 0 · Perceptrón de dos capas desde cero</h2><span>NumPy · regresión</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Construir un perceptrón con <strong>una capa oculta</strong> <strong>sin frameworks</strong> (nada de sklearn, Keras…), versátil y parametrizable.</li>
+          <li>Añadir <strong>monitorización</strong>: calcular el error en cada iteración y mostrarlo/graficarlo.</li>
+          <li>Aproximar la función de <code>data_train.parquet</code> (un problema de <strong>regresión</strong>, adaptando el ejemplo de clasificación).</li>
+          <li>Comportamiento <strong>determinista</strong>: siempre el mismo modelo, el mejor posible.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Clase <code>TwoLayersPerceptron</code> con red <strong>1–12–1</strong>, <strong>tanh</strong> oculta y <strong>salida lineal</strong>.</li>
+          <li>Pérdida <strong>MSE</strong>, retropropagación a mano y <strong>Adam</strong> programado con NumPy.</li>
+          <li>Normalización interna de $X$ e $y$, inicialización <strong>Xavier</strong>, semilla 3, 30 000 épocas de lote completo.</li>
+          <li>Guarda el MSE de cada época en <code>history_</code> y <strong>restaura los mejores parámetros</strong>.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="p0-datos">Datos y carga</h3>
+    <p>86 ejemplos de entrenamiento con una entrada escalar $X\in[-5,5]$ y un objetivo continuo $Y\in[-0{,}39,0{,}34]$. Hay un <strong>hueco central sin muestras</strong>: allí la red tendrá que <strong>interpolar</strong>. El test tiene 1 000 observaciones.</p>
+    <div class="nb-step" data-step="1">
+      <h4>Carga y validación</h4>
+<pre data-code="Celda 3 · carga robusta del Parquet">
+data_path = Path("data_train.parquet")
+if not data_path.exists():
+    data_path = Path("Practica-0") / data_path
+
+datos = pd.read_parquet(data_path)
+X = datos[["X"]].to_numpy(dtype=float)   # forma (86, 1)
+y = datos[["Y"]].to_numpy(dtype=float)   # forma (86, 1)
+if not (np.isfinite(X).all() and np.isfinite(y).all()):
+    raise ValueError("Los datos contienen valores ausentes o no finitos")
+</pre>
+      <p class="code-note"><strong>Dobles corchetes</strong>: <code>datos[["X"]]</code> devuelve una tabla 2D y produce forma <code>(n, 1)</code>; <code>datos["X"]</code> daría un vector <code>(n,)</code> que complicaría las multiplicaciones matriciales. pandas y Matplotlib solo cargan y dibujan: no incumplen la restricción de no usar frameworks de ML.</p>
+    </div>
+
+    <h3 id="p0-clase">La clase <code>TwoLayersPerceptron</code></h3>
+    <div class="nb-step" data-step="2">
+      <h4>Constructor e inicialización Xavier</h4>
+<pre data-code="Celda 6 · __init__ y _initialize_parameters">
+class TwoLayersPerceptron:
+    def __init__(self, input_size, hidden_size=12, output_size=1,
+                 learning_rate=0.005, epochs=30_000, l2=0.0, seed=3):
+        if min(input_size, hidden_size, output_size, epochs) &lt;= 0:
+            raise ValueError("Los tamaños de las capas y el número de épocas deben ser positivos")
+        ...
+        self._initialize_parameters()
+
+    def _initialize_parameters(self):
+        rng = np.random.default_rng(self.seed)        # generador LOCAL: no toca el estado global
+        limit_1 = np.sqrt(6 / (self.input_size + self.hidden_size))
+        limit_2 = np.sqrt(6 / (self.hidden_size + self.output_size))
+        self.W1 = rng.uniform(-limit_1, limit_1, (self.input_size, self.hidden_size))  # (1, 12)
+        self.b1 = np.zeros((1, self.hidden_size))                                     # (1, 12)
+        self.W2 = rng.uniform(-limit_2, limit_2, (self.hidden_size, self.output_size)) # (12, 1)
+        self.b2 = np.zeros((1, self.output_size))                                     # (1, 1)
+</pre>
+      <p class="code-note">Todos los hiperparámetros son argumentos → la clase es <strong>parametrizable</strong>. Los pesos se inicializan aleatorios (rompen la simetría) y los sesgos a cero. La semilla hace que la inicialización sea siempre la misma.</p>
+    </div>
+    <div class="nb-step" data-step="3">
+      <h4>Propagación hacia delante</h4>
+<pre data-code="_forward">
+def _forward(self, X):
+    z1 = X @ self.W1 + self.b1          # (n,1)@(1,12) + (1,12) → (n,12)  broadcasting del sesgo
+    a1 = np.tanh(z1)                    # no linealidad
+    output = a1 @ self.W2 + self.b2     # (n,12)@(12,1) → (n,1)  SALIDA LINEAL para regresión
+    return a1, output                   # a1 se devuelve porque backprop la necesita (1 − a1²)
+</pre>
+      <p class="code-note">Este es <strong>el cambio clave respecto al ejemplo de clasificación</strong>: no se aplica sigmoide ni umbral en la salida, porque hay que predecir valores reales (también negativos).</p>
+    </div>
+    <div class="nb-step" data-step="4">
+      <h4><code>fit</code>: normalización con estadísticas de entrenamiento</h4>
+<pre data-code="fit · normalización">
+self.X_mean_ = X.mean(axis=0, keepdims=True)
+self.X_std_  = X.std(axis=0, keepdims=True)
+self.y_mean_ = y.mean(axis=0, keepdims=True)
+self.y_std_  = y.std(axis=0, keepdims=True)
+self.X_std_[self.X_std_ == 0] = 1.0     # evita dividir por cero
+self.y_std_[self.y_std_ == 0] = 1.0
+X_scaled = (X - self.X_mean_) / self.X_std_
+y_scaled = (y - self.y_mean_) / self.y_std_
+</pre>
+      <p class="code-note">El sufijo <code>_</code> (estilo scikit-learn) indica atributos <strong>aprendidos durante el ajuste</strong>. Normalizar evita gradientes desproporcionados y facilita a Adam. <code>predict</code> reutilizará estas mismas estadísticas.</p>
+    </div>
+
+    <h3 id="p0-backprop">Bucle de entrenamiento: backprop + Adam</h3>
+    <div class="nb-step" data-step="5">
+      <h4>Error, registro del MSE y mejor modelo</h4>
+<pre data-code="fit · bucle (1/2)">
+for epoch in range(1, self.epochs + 1):
+    hidden, output = self._forward(X_scaled)
+    error = output - y_scaled
+    mse = np.mean((error * self.y_std_) ** 2)      # MSE en unidades ORIGINALES (interpretable)
+    self.history_.append(float(mse))                # ← monitorización pedida en el enunciado
+
+    if mse &lt; best_loss:
+        best_loss = mse
+        best_parameters = [parameter.copy() for parameter in parameters]   # COPIAS, no referencias
+</pre>
+      <p class="code-note">Si se guardaran referencias en lugar de <code>.copy()</code>, <code>best_parameters</code> cambiaría junto con los parámetros actuales (Adam los modifica <em>in place</em>) y dejaría de representar la mejor época.</p>
+    </div>
+    <div class="nb-step" data-step="6">
+      <h4>Gradientes (regla de la cadena)</h4>
+<pre data-code="fit · bucle (2/2) · retropropagación">
+    d_output = 2 * error / n_values                          # ∂MSE/∂ŷ
+    dW2 = hidden.T @ d_output + self.l2 * self.W2           # + término L2
+    db2 = np.sum(d_output, axis=0, keepdims=True)
+    d_hidden = (d_output @ self.W2.T) * (1 - hidden**2)     # derivada de tanh = 1 − a²
+    dW1 = X_scaled.T @ d_hidden + self.l2 * self.W1
+    db1 = np.sum(d_hidden, axis=0, keepdims=True)
+    gradients = [dW1, db1, dW2, db2]
+</pre>
+      <p class="code-note">Fíjate en el factor <code>2 / n_values</code>: es la derivada exacta del MSE. Varios compañeros usaron <code>d_output = error</code> (sin dividir por $N$), con lo que el tamaño de paso depende del tamaño del dataset.</p>
+    </div>
+    <div class="nb-step" data-step="7">
+      <h4>Actualización Adam a mano</h4>
+<pre data-code="fit · Adam">
+for index, (parameter, gradient) in enumerate(zip(parameters, gradients)):
+    first_moment[index]  = beta_1 * first_moment[index]  + (1 - beta_1) * gradient
+    second_moment[index] = beta_2 * second_moment[index] + (1 - beta_2) * gradient**2
+    m_corrected = first_moment[index]  / (1 - beta_1**epoch)       # corrección de sesgo
+    v_corrected = second_moment[index] / (1 - beta_2**epoch)
+    parameter -= self.learning_rate * m_corrected / (np.sqrt(v_corrected) + epsilon)
+</pre>
+      <p class="code-note"><code>parameters</code> contiene <strong>referencias</strong> a <code>W1, b1, W2, b2</code>; el <code>-=</code> modifica el array en el sitio, así que también cambia el atributo de la red. Al terminar: <code>self.W1, self.b1, self.W2, self.b2 = best_parameters</code> y <code>is_fitted_ = True</code>.</p>
+    </div>
+    <div class="nb-step" data-step="8">
+      <h4><code>predict</code></h4>
+<pre data-code="predict">
+def predict(self, X):
+    if not getattr(self, "is_fitted_", False):
+        raise RuntimeError("El modelo debe entrenarse antes de predecir")
+    X_scaled = (X - self.X_mean_) / self.X_std_            # estadísticas de TRAIN
+    _, prediction_scaled = self._forward(X_scaled)
+    return prediction_scaled * self.y_std_ + self.y_mean_  # desnormaliza a la escala de Y
+</pre>
+    </div>
+
+    <h3 id="p0-eval">Entrenamiento, curva y resultados</h3>
+<pre data-code="Celdas 8–12 · entrenamiento y métricas">
+model = TwoLayersPerceptron(input_size=1, hidden_size=12, output_size=1,
+                            learning_rate=0.005, epochs=30_000, l2=0.0, seed=3)
+model.fit(X, y, verbose=True, print_every=5_000)
+
+y_pred = model.predict(X)
+mse  = np.mean((y - y_pred) ** 2)
+rmse = np.sqrt(mse)
+r2   = 1 - np.sum((y - y_pred) ** 2) / np.sum((y - y.mean(axis=0)) ** 2)
+</pre>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Época</th><th class="num">1</th><th class="num">5 000</th><th class="num">10 000</th><th class="num">15 000</th><th class="num">20 000</th><th class="num">30 000</th></tr></thead>
+      <tbody><tr><td>MSE (train)</td><td class="num">2,5·10⁻²</td><td class="num">1,9·10⁻⁶</td><td class="num">2,3·10⁻⁷</td><td class="num">2,7·10⁻⁷</td><td class="num">1,8·10⁻⁷</td><td class="num">1,6·10⁻⁷</td></tr></tbody>
+    </table></div>
+    <p>La curva se dibuja con <strong>eje Y logarítmico</strong> para ver a la vez la gran caída inicial y las mejoras minúsculas del final. Que el MSE suba ligeramente en la época 15 000 respecto a la 10 000 muestra por qué conviene <strong>guardar el mejor estado</strong> en lugar del último.</p>
+    <div class="callout key"><div class="ct">◆ Lectura correcta de los resultados</div><p>Train: MSE ≈ 1,59·10⁻⁷, RMSE ≈ 3,98·10⁻⁴, $R^2$ ≈ 0,99999. En las 1 000 observaciones de test (según la guía de estudio): MSE ≈ 9,4·10⁻⁵ y $R^2$ ≈ 0,999. El error se concentra en el <strong>hueco central</strong>: la red predice ≈ 0,828 donde el valor real es ≈ 0,867. <strong>Interpolar una zona sin datos es más difícil que ajustar puntos vistos.</strong></p></div>
+
+    <div class="summary-box">
+      <h4>Resumen de la Práctica 0</h4>
+      <div class="kpis">
+        <div class="kpi"><b>1–12–1</b><span>tanh + salida lineal</span></div>
+        <div class="kpi"><b>Adam</b><span>η = 0,005 · 30 000 épocas</span></div>
+        <div class="kpi"><b>1,6·10⁻⁷</b><span>MSE train</span></div>
+        <div class="kpi"><b>≈ 9,4·10⁻⁵</b><span>MSE test</span></div>
+      </div>
+      <ul>
+        <li>Clasificación → regresión: <strong>salida lineal</strong> + <strong>MSE</strong> (en lugar de sigmoide + umbral).</li>
+        <li>Backprop con regla de la cadena; derivada de tanh <code>1 − a²</code>; gradiente del MSE <code>2·error/N</code>.</li>
+        <li>Normalización con estadísticas <strong>solo de train</strong>, reutilizadas en <code>predict</code>.</li>
+        <li>Determinismo: semilla local + lote completo (sin barajado) → mismo modelo siempre.</li>
+        <li>Se guarda el <strong>mejor</strong> estado (copias), no el último.</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas tipo test y de código de la Práctica 0.</p><a class="btn btn-solid" href="../test.html#practica=P0">Test P0 →</a></div>
+  </section>
+
+  <!-- ============================================================ PRÁCTICA 1 -->
+  <section id="p1">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Práctica 1 · Hiperparámetros">Práctica 1 · Estudio de hiperparámetros en MNIST</h2><span>TensorFlow / Keras · 10 clases</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Estudiar el efecto de los <strong>parámetros de entrenamiento</strong> (optimizador, épocas, lote…) sobre el modelo de ejemplo.</li>
+          <li>Comparar gráfica y numéricamente: <strong>accuracy</strong>, <strong>nº de errores</strong> y <strong>matriz de confusión</strong> en train <em>y</em> test, y <strong>tiempo de entrenamiento</strong>.</li>
+          <li>Justificar los resultados y <strong>guardar el mejor modelo</strong>.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Arquitectura <strong>fija</strong>: Flatten → Dense(128, ReLU) → Dense(10, softmax).</li>
+          <li><strong>Diseño factorial completo</strong> 3 × 2 × 2 = <strong>12</strong> configuraciones: {SGD, RMSprop, Adam} × {5, 10 épocas} × {lote 32, 128}.</li>
+          <li>Misma semilla (42) antes de cada modelo, ejecución determinista, tiempo solo de <code>fit</code>.</li>
+          <li>Ganador guardado en <code>mejor_modelo_mnist.keras</code> y recargado para verificarlo.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="p1-datos">Datos y preprocesado</h3>
+<pre data-code="Celdas 3–5">
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+# (60000, 28, 28) y (10000, 28, 28), píxeles enteros en [0, 255], etiquetas 0–9
+
+x_train = x_train.astype("float32") / 255.0     # → [0, 1]
+x_test  = x_test.astype("float32") / 255.0
+</pre>
+    <p class="code-note">Dividir por 255 mejora el condicionamiento numérico y mantiene los gradientes manejables. Se aplica igual a todas las configuraciones para que la comparación sea justa. Las clases están aproximadamente equilibradas (≈ 5 400–6 700 ejemplos por dígito).</p>
+
+    <h3 id="p1-diseno">Diseño experimental</h3>
+<pre data-code="Celda 7 · rejilla factorial">
+OPTIMIZERS = {
+    "SGD": lambda: tf.keras.optimizers.SGD(),
+    "RMSprop": lambda: tf.keras.optimizers.RMSprop(),
+    "Adam": lambda: tf.keras.optimizers.Adam(),
+}
+EPOCHS_VALUES = (5, 10)
+BATCH_SIZES = (32, 128)
+CONFIGURATIONS = [
+    {"optimizer": o, "epochs": e, "batch_size": b}
+    for o, e, b in itertools.product(OPTIMIZERS, EPOCHS_VALUES, BATCH_SIZES)
+]   # 12 combinaciones
+</pre>
+    <p class="code-note">Los optimizadores se guardan como <code>lambda</code> para crear una <strong>instancia nueva</strong> en cada modelo: un optimizador de Keras guarda estado (momentos de Adam) y no debe reutilizarse entre modelos distintos.</p>
+
+    <h3 id="p1-modelo">Modelo, métricas y matriz de confusión</h3>
+<pre data-code="Celda 9 · build_model y métricas">
+def build_model(optimizer_name):
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(28, 28)),
+        tf.keras.layers.Flatten(),                         # 784 valores, 0 parámetros
+        tf.keras.layers.Dense(128, activation="relu"),     # 100 480 parámetros
+        tf.keras.layers.Dense(10, activation="softmax"),   # 1 290 parámetros
+    ])
+    model.compile(optimizer=OPTIMIZERS[optimizer_name](),
+                  loss="sparse_categorical_crossentropy",  # etiquetas enteras
+                  metrics=["accuracy"])
+    return model
+
+def confusion_matrix(y_true, y_pred, n_classes=10):
+    matrix = np.zeros((n_classes, n_classes), dtype=np.int64)
+    np.add.at(matrix, (y_true, y_pred), 1)                 # C[i, j] += 1  (real i, predicho j)
+    return matrix
+
+def evaluate_predictions(model, x, y):
+    predictions = np.argmax(model.predict(x, batch_size=512, verbose=0), axis=1)
+    matrix = confusion_matrix(y, predictions)
+    errors = int(np.count_nonzero(predictions != y))
+    accuracy = float(np.mean(predictions == y))
+    if matrix.sum() != len(y) or errors != len(y) - np.trace(matrix):   # comprobación de coherencia
+        raise RuntimeError("Las métricas calculadas no son coherentes")
+    return accuracy, errors, matrix
+</pre>
+    <p class="code-note"><code>np.add.at</code> acumula correctamente aunque un par (i, j) se repita (una asignación con indexado avanzado <code>matrix[y_true, y_pred] += 1</code> solo sumaría 1 por par repetido). <code>argmax</code> convierte las 10 probabilidades softmax en la clase predicha.</p>
+
+    <h3 id="p1-bucle">Bucle de entrenamiento</h3>
+<pre data-code="Celda 11 · bucle (extracto)">
+for run, config in enumerate(CONFIGURATIONS, start=1):
+    tf.keras.backend.clear_session()            # libera grafos de modelos anteriores
+    tf.keras.utils.set_random_seed(SEED)        # misma inicialización para todos
+    model = build_model(config["optimizer"])
+
+    start = time.perf_counter()
+    history = model.fit(x_train, y_train, epochs=config["epochs"],
+                        batch_size=config["batch_size"], verbose=0, shuffle=True)
+    elapsed = time.perf_counter() - start       # SOLO el tiempo de entrenamiento
+
+    train_accuracy, train_errors, train_matrix = evaluate_predictions(model, x_train, y_train)
+    test_accuracy,  test_errors,  test_matrix  = evaluate_predictions(model, x_test,  y_test)
+
+    score = (test_accuracy, -test_errors, -elapsed)   # orden lexicográfico de desempate
+    if score &gt; best_score:
+        best_model, best_key, best_score = model, name, score
+</pre>
+    <p class="code-note">La tupla <code>score</code> se compara elemento a elemento: primero accuracy de test; si empata, menos errores; si empata, menos tiempo. Los resultados se guardan en <code>resultados_configuraciones.csv</code> y las 24 matrices en <code>matrices_confusion.npz</code>.</p>
+
+    <h3 id="p1-resultados">Resultados</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Configuración</th><th class="num">Acc. train</th><th class="num">Acc. test</th><th class="num">Err. test</th><th class="num">Tiempo</th><th class="num">Brecha</th></tr></thead>
+      <tbody>
+        <tr class="best"><td>Adam-e10-b128</td><td class="num">99,285 %</td><td class="num">97,760 %</td><td class="num">224</td><td class="num">3,3 s</td><td class="num">1,53 pp</td></tr>
+        <tr><td>RMSprop-e10-b128</td><td class="num">99,110 %</td><td class="num">97,620 %</td><td class="num">238</td><td class="num">3,1 s</td><td class="num">1,49 pp</td></tr>
+        <tr><td>Adam-e10-b32</td><td class="num">99,408 %</td><td class="num">97,610 %</td><td class="num">239</td><td class="num">8,6 s</td><td class="num">1,80 pp</td></tr>
+        <tr><td>RMSprop-e10-b32</td><td class="num">99,287 %</td><td class="num">97,560 %</td><td class="num">244</td><td class="num">8,0 s</td><td class="num">1,73 pp</td></tr>
+        <tr><td>Adam-e5-b128</td><td class="num">98,357 %</td><td class="num">97,520 %</td><td class="num">248</td><td class="num">1,8 s</td><td class="num">0,84 pp</td></tr>
+        <tr><td>Adam-e5-b32</td><td class="num">98,848 %</td><td class="num">97,510 %</td><td class="num">249</td><td class="num">4,4 s</td><td class="num">1,34 pp</td></tr>
+        <tr><td>RMSprop-e5-b32</td><td class="num">98,573 %</td><td class="num">97,510 %</td><td class="num">249</td><td class="num">4,1 s</td><td class="num">1,06 pp</td></tr>
+        <tr><td>RMSprop-e5-b128</td><td class="num">98,233 %</td><td class="num">97,410 %</td><td class="num">259</td><td class="num">1,7 s</td><td class="num">0,82 pp</td></tr>
+        <tr><td>SGD-e10-b32</td><td class="num">95,653 %</td><td class="num">95,160 %</td><td class="num">484</td><td class="num">6,6 s</td><td class="num">0,49 pp</td></tr>
+        <tr><td>SGD-e5-b32</td><td class="num">93,817 %</td><td class="num">93,780 %</td><td class="num">622</td><td class="num">3,5 s</td><td class="num">0,04 pp</td></tr>
+        <tr><td>SGD-e10-b128</td><td class="num">92,170 %</td><td class="num">92,630 %</td><td class="num">737</td><td class="num">2,7 s</td><td class="num">−0,46 pp</td></tr>
+        <tr><td>SGD-e5-b128</td><td class="num">90,558 %</td><td class="num">91,070 %</td><td class="num">893</td><td class="num">1,5 s</td><td class="num">−0,51 pp</td></tr>
+      </tbody>
+    </table></div>
+    <div class="bars" role="img" aria-label="Errores de test por configuración en la práctica 1">
+      <h5>Errores en test (de 10 000) · menos es mejor</h5>
+      <p class="sub">Escala desde 0. Dorado = configuración elegida.</p>
+      <div class="bar-row win" title="Adam-e10-b128: 224 errores"><span class="lbl">Adam-e10-b128</span><div class="track"><div class="fill" style="width:25.1%"></div></div><span class="val">224</span></div>
+      <div class="bar-row" title="RMSprop-e10-b128: 238"><span class="lbl">RMSprop-e10-b128</span><div class="track"><div class="fill" style="width:26.7%"></div></div><span class="val">238</span></div>
+      <div class="bar-row" title="Adam-e10-b32: 239"><span class="lbl">Adam-e10-b32</span><div class="track"><div class="fill" style="width:26.8%"></div></div><span class="val">239</span></div>
+      <div class="bar-row" title="RMSprop-e10-b32: 244"><span class="lbl">RMSprop-e10-b32</span><div class="track"><div class="fill" style="width:27.3%"></div></div><span class="val">244</span></div>
+      <div class="bar-row" title="Adam-e5-b128: 248"><span class="lbl">Adam-e5-b128</span><div class="track"><div class="fill" style="width:27.8%"></div></div><span class="val">248</span></div>
+      <div class="bar-row" title="Adam-e5-b32: 249"><span class="lbl">Adam-e5-b32</span><div class="track"><div class="fill" style="width:27.9%"></div></div><span class="val">249</span></div>
+      <div class="bar-row" title="RMSprop-e5-b32: 249"><span class="lbl">RMSprop-e5-b32</span><div class="track"><div class="fill" style="width:27.9%"></div></div><span class="val">249</span></div>
+      <div class="bar-row" title="RMSprop-e5-b128: 259"><span class="lbl">RMSprop-e5-b128</span><div class="track"><div class="fill" style="width:29.0%"></div></div><span class="val">259</span></div>
+      <div class="bar-row" title="SGD-e10-b32: 484"><span class="lbl">SGD-e10-b32</span><div class="track"><div class="fill" style="width:54.2%"></div></div><span class="val">484</span></div>
+      <div class="bar-row" title="SGD-e5-b32: 622"><span class="lbl">SGD-e5-b32</span><div class="track"><div class="fill" style="width:69.7%"></div></div><span class="val">622</span></div>
+      <div class="bar-row" title="SGD-e10-b128: 737"><span class="lbl">SGD-e10-b128</span><div class="track"><div class="fill" style="width:82.5%"></div></div><span class="val">737</span></div>
+      <div class="bar-row" title="SGD-e5-b128: 893"><span class="lbl">SGD-e5-b128</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">893</span></div>
+    </div>
+
+    <h3 id="p1-interp">Interpretación razonada</h3>
+    <ol>
+      <li><strong>Optimizador.</strong> Adam y RMSprop superan con claridad a SGD con su tasa por defecto: adaptan el paso por parámetro. SGD (91–95 %) <strong>no es intrínsecamente peor</strong>: le faltan épocas, <em>momentum</em> o una tasa ajustada. Está <strong>subajustando</strong> (train y test bajos y casi iguales).</li>
+      <li><strong>Épocas.</strong> 10 épocas mejoran todas las combinaciones. En Adam/RMSprop el train mejora más que el test → empieza el <strong>sobreajuste</strong>.</li>
+      <li><strong>Lote.</strong> Con lote 32 hay 1 875 actualizaciones por época; con 128, 469 (≈ 4 veces menos) → el lote 128 es ≈ 2,6 veces más rápido. Más actualizaciones <strong>no</strong> garantizan mejor test.</li>
+      <li><strong>Generalización.</strong> Adam-e10-b32 tiene el <strong>mejor train</strong> (99,408 %) pero peor test que el ganador: <strong>ajustar más el entrenamiento no implica generalizar mejor</strong>.</li>
+      <li><strong>Brechas negativas</strong> de SGD-b128: no significa que el test sea «más fácil»; son fluctuaciones normales cuando el modelo subajusta.</li>
+      <li><strong>Confusiones</strong> del ganador: 4→9 (14), 3→5 (11), 6→5, 2→8, 1→8 (9 cada una)… pares que comparten trazos.</li>
+    </ol>
+    <div class="callout exam"><div class="ct">★ Limitaciones que conviene saber decir</div><p>(1) Se elige el ganador <strong>mirando el test</strong> (lo pide el enunciado) → estimación optimista; lo correcto es validación. (2) <strong>Una sola semilla</strong>: diferencias de pocos ejemplos no son concluyentes. (3) Las conclusiones valen solo para <strong>esta arquitectura y este espacio de búsqueda</strong>.</p></div>
+
+    <h3 id="p1-guardar">Guardado del mejor modelo</h3>
+<pre data-code="Celda 15 · guardar y verificar">
+model_path = BASE_DIR / "mejor_modelo_mnist.keras"
+best_model.save(model_path)                              # arquitectura + pesos + compilación
+reloaded_model = tf.keras.models.load_model(model_path)
+reloaded_accuracy, reloaded_errors, _ = evaluate_predictions(reloaded_model, x_test, y_test)
+if not np.isclose(reloaded_accuracy, best_row["test_accuracy"]):
+    raise RuntimeError("El modelo recargado no reproduce la exactitud obtenida")
+</pre>
+    <div class="summary-box">
+      <h4>Resumen de la Práctica 1</h4>
+      <div class="kpis">
+        <div class="kpi"><b>12</b><span>configuraciones (3×2×2)</span></div>
+        <div class="kpi"><b>Adam-e10-b128</b><span>ganador</span></div>
+        <div class="kpi"><b>97,76 %</b><span>acc. test · 224 errores</span></div>
+        <div class="kpi"><b>3,3 s</b><span>tiempo de fit (CPU)</span></div>
+      </div>
+      <ul>
+        <li>MNIST: 60 000 train / 10 000 test, 28×28, 10 clases; normalización <code>/255</code>.</li>
+        <li>Red: Flatten → Dense(128, ReLU) → Dense(10, softmax), <strong>101 770 parámetros</strong>; pérdida <code>sparse_categorical_crossentropy</code>.</li>
+        <li>Adam y RMSprop ≫ SGD (con valores por defecto); 10 épocas &gt; 5; lote 128 más rápido y, aquí, generaliza mejor.</li>
+        <li>Más accuracy en train ≠ más en test (Adam-e10-b32).</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas sobre la Práctica 1 (cálculos de iteraciones, métricas, código).</p><a class="btn btn-solid" href="../test.html#practica=P1">Test P1 →</a></div>
+  </section>
+
+  <!-- ============================================================ PRÁCTICA 2 -->
+  <section id="p2">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Práctica 2 · Par / impar">Práctica 2 · Clasificación par / impar</h2><span>TensorFlow / Keras · binaria</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Adaptar el modelo de la P1 para clasificar los dígitos en <strong>pares e impares</strong>.</li>
+          <li>Se podía modificar la arquitectura añadiendo capas <strong>Dense</strong> y/o <strong>Dropout</strong>.</li>
+          <li>Comparar alternativas justificando los cambios, elegir la mejor y <strong>guardarla</strong>.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Etiqueta binaria <code>y = dígito % 2</code> (0 = par, 1 = impar). Salida <strong>1 neurona sigmoide</strong> + <strong>binary_crossentropy</strong>, umbral 0,5.</li>
+          <li><strong>Validación</strong> estratificada de 6 000 (3 000 pares + 3 000 impares); el test solo al final.</li>
+          <li>4 alternativas: base 10 épocas, base 20 + parada temprana, 2 densas, 2 densas + Dropout 0,2. Adam, lote 128.</li>
+          <li>Ganador: <code>densa-dropout-20-stop</code> → <code>mejor_modelo_paridad.keras</code>.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="p2-datos">Partición y etiquetas</h3>
+<pre data-code="Celda 3 · validación estratificada y etiquetas binarias">
+rng = np.random.default_rng(SEED)
+validation_indices = np.concatenate([
+    rng.permutation(np.flatnonzero(digits_train % 2 == parity))[:3_000]   # 3 000 de cada paridad
+    for parity in (0, 1)
+])
+validation_indices = rng.permutation(validation_indices)
+fit_mask = np.ones(len(digits_train), dtype=bool)
+fit_mask[validation_indices] = False                     # el resto (54 000) entrena
+
+y_fit  = (digits_train[fit_mask] % 2).astype('int32')
+y_val  = (digits_train[validation_indices] % 2).astype('int32')
+y_test = (digits_test % 2).astype('int32')
+assert len(np.intersect1d(np.flatnonzero(fit_mask), validation_indices)) == 0   # sin solapamiento
+</pre>
+    <p class="code-note">Se conservan también los dígitos originales para analizar después qué dígitos fallan más. Las clases quedan casi equilibradas (26 492 pares / 27 508 impares en train).</p>
+
+    <h3 id="p2-modelos">Arquitecturas</h3>
+<pre data-code="Celda 5 · configuraciones y build_model">
+CONFIGURATIONS = [
+    {'name': 'base-10',               'hidden': (128,),    'dropout': 0.0, 'epochs': 10, 'early_stop': False},
+    {'name': 'base-20-stop',          'hidden': (128,),    'dropout': 0.0, 'epochs': 20, 'early_stop': True},
+    {'name': 'densa-20-stop',         'hidden': (128, 64), 'dropout': 0.0, 'epochs': 20, 'early_stop': True},
+    {'name': 'densa-dropout-20-stop', 'hidden': (128, 64), 'dropout': 0.2, 'epochs': 20, 'early_stop': True},
+]
+
+def build_model(config):
+    layers = [tf.keras.layers.Input(shape=(28, 28)), tf.keras.layers.Flatten()]
+    for units in config['hidden']:
+        layers.append(tf.keras.layers.Dense(units, activation='relu'))
+        if config['dropout']:
+            layers.append(tf.keras.layers.Dropout(config['dropout']))
+    layers.append(tf.keras.layers.Dense(1, activation='sigmoid'))            # 1 neurona, P(impar)
+    model = tf.keras.Sequential(layers)
+    model.compile(optimizer=tf.keras.optimizers.Adam(),
+                  loss='binary_crossentropy', metrics=['accuracy'])
+    return model
+</pre>
+    <p class="code-note">Las configuraciones están diseñadas para <strong>cambiar un factor cada vez</strong>: 1→2 más épocas con parada; 2→3 una capa más; 3→4 Dropout. Así se puede atribuir cada diferencia a un cambio concreto (un fallo frecuente en las entregas de compañeros era cambiar varias cosas a la vez).</p>
+
+<pre data-code="Celda 7 · parada temprana y predicción binaria">
+callbacks = [tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss', patience=4, restore_best_weights=True)] if config['early_stop'] else []
+history = model.fit(x_fit, y_fit, validation_data=(x_val, y_val),
+                    epochs=config['epochs'], batch_size=128, callbacks=callbacks)
+
+probabilities = model.predict(x, batch_size=512, verbose=0).ravel()
+predictions = (probabilities &gt;= 0.5).astype('int32')         # umbral 0,5
+</pre>
+    <p class="code-note"><code>patience=4</code>: espera 4 épocas sin mejora de <code>val_loss</code> antes de parar; <code>restore_best_weights=True</code> vuelve a los pesos de la mejor época. Las métricas de train se recalculan con <code>predict</code> → <strong>sin Dropout</strong>, comparables entre modelos.</p>
+
+    <h3 id="p2-resultados">Resultados (elegidos por validación)</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Configuración</th><th class="num">Épocas (pesos)</th><th class="num">Acc. train</th><th class="num">Acc. val</th><th class="num">Err. val</th><th class="num">val_loss</th><th class="num">Tiempo</th></tr></thead>
+      <tbody>
+        <tr class="best"><td>densa-dropout-20-stop</td><td class="num">12 (8)</td><td class="num">99,559 %</td><td class="num">98,250 %</td><td class="num">105</td><td class="num">0,0597</td><td class="num">4,6 s</td></tr>
+        <tr><td>base-20-stop</td><td class="num">20 (16)</td><td class="num">99,848 %</td><td class="num">98,217 %</td><td class="num">107</td><td class="num">0,0598</td><td class="num">6,1 s</td></tr>
+        <tr><td>base-10</td><td class="num">10 (10)</td><td class="num">99,398 %</td><td class="num">98,067 %</td><td class="num">116</td><td class="num">0,0652</td><td class="num">3,3 s</td></tr>
+        <tr><td>densa-20-stop</td><td class="num">6 (2)</td><td class="num">98,704 %</td><td class="num">97,867 %</td><td class="num">128</td><td class="num">0,0653</td><td class="num">2,4 s</td></tr>
+      </tbody>
+    </table></div>
+    <ol>
+      <li><strong>Cambiar la salida es indispensable</strong>: dos clases → sigmoide + pérdida binaria. Con solo eso, la base ya acierta 5 884/6 000.</li>
+      <li><strong>Más épocas</strong> en la base: +9 aciertos, pero la brecha train–val sube de 1,33 a 1,63 pp.</li>
+      <li><strong>Una capa más sin regularizar</strong> no ayuda: su mejor val_loss es en la época 2 (sobreajusta rápido). Más grande ≠ mejor.</li>
+      <li><strong>Dropout 0,2</strong> arregla la red profunda (−23 errores frente a sin Dropout) y reduce la brecha. Gana a la base-20 por solo 2 ejemplos de 6 000: <strong>ventaja no concluyente</strong> con una semilla.</li>
+      <li><strong>Test (una sola vez)</strong>: <strong>98,56 %</strong>, 144 errores (69 pares → impar, 75 impares → par). Los dígitos 8 (23 errores) y 9 (25) son los más difíciles.</li>
+    </ol>
+    <div class="summary-box">
+      <h4>Resumen de la Práctica 2</h4>
+      <div class="kpis">
+        <div class="kpi"><b>y % 2</b><span>0 = par, 1 = impar</span></div>
+        <div class="kpi"><b>sigmoide + BCE</b><span>1 neurona, umbral 0,5</span></div>
+        <div class="kpi"><b>98,25 %</b><span>validación (105 err.)</span></div>
+        <div class="kpi"><b>98,56 %</b><span>test (144 err.)</span></div>
+      </div>
+      <ul>
+        <li>Mejor: Flatten → Dense(128) → Dropout(0,2) → Dense(64) → Dropout(0,2) → Dense(1, sigmoide); Adam, lote 128, EarlyStopping(patience 4).</li>
+        <li>Selección <strong>por validación</strong>; test intacto hasta el final.</li>
+        <li>Comparaciones de <strong>un único factor</strong>; Dropout regulariza, una capa extra sola no.</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas de la Práctica 2.</p><a class="btn btn-solid" href="../test.html#practica=P2">Test P2 →</a></div>
+  </section>
+
+  <!-- ============================================================ CHULETA -->
+  <section id="t1-chuleta">
+    <h2 class="sec" data-short="Chuleta final"><span class="n">★</span> Chuleta del Tema 1</h2>
+    <div class="tbl-wrap"><table class="tbl">
+      <tbody>
+        <tr><th>Neurona</th><td>$a=f(\mathbf w^\top\mathbf x+b)$; pesos y sesgos = parámetros aprendibles</td></tr>
+        <tr><th>Parámetros Dense</th><td>$n_{in}\cdot n_{out}+n_{out}$</td></tr>
+        <tr><th>Salida / pérdida</th><td>regresión: lineal + MSE · binaria: sigmoide + BCE · multiclase: softmax + (sparse) CCE</td></tr>
+        <tr><th>Derivadas</th><td>$\sigma'=\sigma(1-\sigma)$ · $\tanh'=1-\tanh^2$ · ReLU' = 0/1 · MSE' $=\frac2N(\hat y-y)$</td></tr>
+        <tr><th>Actualización</th><td>$\theta\leftarrow\theta-\eta\nabla L$</td></tr>
+        <tr><th>Optimizadores</th><td>SGD (lote, varianza) · AdaGrad (tasa por parámetro) · RMSprop (media móvil de $g^2$) · Adam (momentum + RMSprop)</td></tr>
+        <tr><th>Iteraciones/época</th><td>$\lceil N/B\rceil$ (60 000/128 → 469; /32 → 1 875)</td></tr>
+        <tr><th>Sobreajuste</th><td>train ≫ test · remedios: validación + parada temprana, Dropout, L2, más datos</td></tr>
+        <tr><th>Normalización</th><td>estadísticas solo de train; MNIST: <code>/255</code></td></tr>
+        <tr><th>Test</th><td>una sola vez, al final; elegir por validación</td></tr>
+      </tbody>
+    </table></div>
+    <div class="mini-quiz"><p><strong>Simulacro del Tema 1</strong>: 20 preguntas aleatorias de teoría y prácticas.</p><a class="btn btn-solid" href="../test.html#tema=T1&amp;modo=examen">Simulacro T1 →</a></div>
+  </section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="wrap"><span>AC·II · Apuntes de Aprendizaje Computacional II · Tema 1</span><span><a href="tema-2.html">Siguiente: Tema 2 · CNN →</a></span></div>
+</footer>
+</body>
+</html>

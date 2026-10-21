@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Test · AC·II</title>
+<meta name="description" content="Test interactivo de Aprendizaje Computacional II: preguntas de teoría, prácticas, código y cálculo con corrección inmediata y simulacros.">
+<script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/site.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script defer src="assets/js/site.js"></script>
+<script defer src="assets/js/preguntas-t1.js"></script>
+<script defer src="assets/js/preguntas-t2.js"></script>
+<script defer src="assets/js/preguntas-t3.js"></script>
+<script defer src="assets/js/test.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-2M7 7l3 5M7 17l3-5M7 17l3 2M14 5l3 6M14 12h3M14 19l3-6"/></svg></span> AC·II <small>Aprendizaje Computacional II</small></a>
+  <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="index.html">Inicio</a>
+    <a href="apuntes/tema-1.html">Tema 1 · RNA</a>
+    <a href="apuntes/tema-2.html">Tema 2 · CNN</a>
+    <a href="apuntes/tema-3.html">Tema 3 · GAN</a>
+    <a href="test.html" aria-current="page">Test</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="index.html">Inicio</a> / Test</div>
+    <h1>Test de autoevaluación</h1>
+    <p>Preguntas de teoría, de las prácticas, de cálculo y de «encuentra el fallo» en código. Corrección inmediata con explicación y enlace al apartado de los apuntes, o simulacro de examen con nota final. Tu progreso se guarda en este navegador.</p>
+  </div>
+</section>
+
+<main class="quiz-shell">
+  <div class="stats-strip" aria-label="Progreso guardado">
+    <div class="stat"><b id="st-total">—</b><span>preguntas en el banco</span></div>
+    <div class="stat"><b id="st-seen">—</b><span>respondidas alguna vez</span></div>
+    <div class="stat"><b id="st-master">—</b><span>dominadas (última vez bien)</span><div class="meter"><i id="st-meter"></i></div></div>
+    <div class="stat"><b id="st-fail">—</b><span>falladas la última vez</span></div>
+  </div>
+
+  <!-- ====================== CONFIGURACIÓN -->
+  <section id="setup">
+    <div class="panel">
+      <h3>1 · Modo</h3>
+      <div class="mode-switch" role="group" aria-label="Modo de test">
+        <button class="mode" type="button" data-mode="practica" aria-pressed="true"><b>Práctica guiada</b><span>Corrección y explicación al momento. Sin límite.</span></button>
+        <button class="mode" type="button" data-mode="examen" aria-pressed="false"><b>Simulacro de examen</b><span>N preguntas al azar, nota sobre 10 al final.</span></button>
+        <button class="mode" type="button" data-mode="repaso" aria-pressed="false"><b>Repasar fallos</b><span>Solo las que fallaste la última vez o marcaste.</span></button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>2 · Qué preguntar</h3>
+      <div class="filters">
+        <div class="filter-group"><label class="gl">Tema</label><div class="chips" id="f-tema"></div></div>
+        <div class="filter-group"><label class="gl">Bloque</label><div class="chips" id="f-practica"></div></div>
+        <div class="filter-group"><label class="gl">Tipo de pregunta</label><div class="chips" id="f-tipo"></div></div>
+      </div>
+      <div class="row-actions">
+        <label class="check-inline">Nº de preguntas
+          <select class="sel" id="opt-n">
+            <option value="10">10</option><option value="20" selected>20</option><option value="30">30</option><option value="40">40</option><option value="all">Todas</option>
+          </select></label>
+        <label class="check-inline"><input type="checkbox" id="opt-shuffle-opts" checked> Barajar opciones</label>
+        <label class="check-inline" id="wrap-penal"><input type="checkbox" id="opt-penal"> Penalizar fallos (−1/3)</label>
+        <label class="check-inline" id="wrap-timer"><input type="checkbox" id="opt-timer"> Cronómetro (1 min/pregunta)</label>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-solid" id="btn-start" type="button">Empezar →</button>
+        <span class="muted" id="avail">—</span>
+        <button class="btn btn-line" id="btn-reset" type="button" style="margin-left:auto">Borrar progreso</button>
+      </div>
+      <p class="muted" id="reset-confirm" hidden style="margin:.6rem 0 0;color:var(--bad);font-size:.88rem">¿Seguro? Pulsa otra vez «Borrar progreso» para confirmar.</p>
+    </div>
+  </section>
+
+  <!-- ====================== EJECUCIÓN -->
+  <section id="run" hidden>
+    <div class="qbar">
+      <span class="pos" id="q-pos">Pregunta 1 / 20</span>
+      <span style="display:flex;gap:.5rem;align-items:center">
+        <span class="timer" id="q-timer" hidden>00:00</span>
+        <button class="flag" id="q-flag" type="button" aria-pressed="false">⚑ Marcar</button>
+        <button class="flag" id="q-quit" type="button">Terminar</button>
+      </span>
+    </div>
+    <div class="qprog"><i id="q-prog"></i></div>
+    <article class="qcard" aria-live="polite">
+      <div class="qmeta" id="q-meta"></div>
+      <p class="qtext" id="q-text"></p>
+      <p class="qhint" id="q-hint" hidden>Selecciona todas las correctas y pulsa «Comprobar».</p>
+      <pre class="qcode" id="q-code" hidden><code class="language-python"></code></pre>
+      <div class="opts" id="q-opts"></div>
+      <div class="feedback" id="q-fb" hidden></div>
+      <div class="qnav">
+        <button class="btn btn-line" id="q-prev" type="button">← Anterior</button>
+        <span style="display:flex;gap:.6rem">
+          <button class="btn btn-line" id="q-check" type="button">Comprobar</button>
+          <button class="btn btn-solid" id="q-next" type="button">Siguiente →</button>
+        </span>
+      </div>
+      <p class="shortcuts">Atajos: <span class="kbd">1</span>–<span class="kbd">4</span> o <span class="kbd">A</span>–<span class="kbd">D</span> elegir · <span class="kbd">Enter</span> comprobar / siguiente · <span class="kbd">←</span> <span class="kbd">→</span> navegar · <span class="kbd">F</span> marcar</p>
+    </article>
+  </section>
+
+  <!-- ====================== RESULTADO -->
+  <section id="result" hidden>
+    <div class="panel">
+      <div class="result-hero">
+        <div class="overline" id="r-mode">Resultado</div>
+        <div class="score" id="r-score">0<small>/10</small></div>
+        <p id="r-summary"></p>
+        <div class="row-actions" style="justify-content:center">
+          <button class="btn btn-solid" id="r-again" type="button">Otro test</button>
+          <button class="btn btn-line" id="r-retry-wrong" type="button">Repetir las falladas</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Por subtema</h3>
+      <div class="breakdown" id="r-breakdown"></div>
+    </div>
+    <div class="panel">
+      <h3>Revisión</h3>
+      <div class="review-list" id="r-review"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap"><span>AC·II · Test de autoevaluación</span><span><a href="index.html">Volver al inicio</a></span></div>
+</footer>
+</body>
+</html>

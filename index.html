@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AC·II · Apuntes y test de Aprendizaje Computacional II</title>
+<meta name="description" content="Resúmenes didácticos, prácticas explicadas celda a celda y test interactivo de Aprendizaje Computacional II: redes neuronales, CNN, transfer learning y GAN.">
+<script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/site.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/site.js"></script>
+<script defer src="assets/js/preguntas-t1.js"></script>
+<script defer src="assets/js/preguntas-t2.js"></script>
+<script defer src="assets/js/preguntas-t3.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-2M7 7l3 5M7 17l3-5M7 17l3 2M14 5l3 6M14 12h3M14 19l3-6"/></svg></span> AC·II <small>Aprendizaje Computacional II</small></a>
+  <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="index.html" aria-current="page">Inicio</a>
+    <a href="apuntes/tema-1.html">Tema 1 · RNA</a>
+    <a href="apuntes/tema-2.html">Tema 2 · CNN</a>
+    <a href="apuntes/tema-3.html">Tema 3 · GAN</a>
+    <a href="test.html">Test</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <span class="eyebrow"><span class="dot"></span> Aprendizaje Computacional II · Parcial</span>
+      <h1>De la neurona a la GAN,<br><em>entendiendo cada línea.</em></h1>
+      <p class="lead">Resúmenes de teoría con diagramas, las seis prácticas explicadas celda a celda con el código que importa y un banco de preguntas tipo test con corrección inmediata, simulacros y ejercicios de «encuentra el fallo».</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="test.html">Empezar el test ↗</a>
+        <a class="btn btn-ghost" href="#mapa">Qué estudiar</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>3</strong><span>temas</span></div>
+        <div><strong>6</strong><span>prácticas explicadas</span></div>
+        <div><strong id="n-preg">—</strong><span>preguntas tipo test</span></div>
+        <div><strong id="n-code">—</strong><span>de código y cálculo</span></div>
+      </div>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 420 340">
+        <defs>
+          <linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="#5a82cf"/><stop offset="1" stop-color="#d9a21b"/></linearGradient>
+          <radialGradient id="glow"><stop offset="0" stop-color="#5a82cf" stop-opacity=".45"/><stop offset="1" stop-color="#5a82cf" stop-opacity="0"/></radialGradient>
+        </defs>
+        <circle cx="210" cy="170" r="160" fill="url(#glow)"/>
+        <g stroke="#93afe3" stroke-opacity=".35" stroke-width="1.2">
+          <path d="M60 80 L170 50 M60 80 L170 130 M60 80 L170 210 M60 80 L170 290 M60 170 L170 50 M60 170 L170 130 M60 170 L170 210 M60 170 L170 290 M60 260 L170 50 M60 260 L170 130 M60 260 L170 210 M60 260 L170 290"/>
+          <path d="M170 50 L280 90 M170 50 L280 170 M170 50 L280 250 M170 130 L280 90 M170 130 L280 170 M170 130 L280 250 M170 210 L280 90 M170 210 L280 170 M170 210 L280 250 M170 290 L280 90 M170 290 L280 170 M170 290 L280 250"/>
+          <path d="M280 90 L370 170 M280 170 L370 170 M280 250 L370 170"/>
+        </g>
+        <path d="M60 170 L170 130 L280 170 L370 170" stroke="url(#hg)" stroke-width="3" fill="none"/>
+        <g fill="#0d1d40" stroke="#93afe3" stroke-width="1.5">
+          <circle cx="60" cy="80" r="15"/><circle cx="60" cy="170" r="15"/><circle cx="60" cy="260" r="15"/>
+          <circle cx="170" cy="50" r="15"/><circle cx="170" cy="130" r="15"/><circle cx="170" cy="210" r="15"/><circle cx="170" cy="290" r="15"/>
+          <circle cx="280" cy="90" r="15"/><circle cx="280" cy="170" r="15"/><circle cx="280" cy="250" r="15"/>
+        </g>
+        <circle cx="370" cy="170" r="20" fill="#d9a21b"/>
+        <circle cx="60" cy="170" r="15" fill="#2f5cb0"/><circle cx="170" cy="130" r="15" fill="#2f5cb0"/><circle cx="280" cy="170" r="15" fill="#2f5cb0"/>
+        <text x="60" y="320" text-anchor="middle" fill="#93afe3" font-family="JetBrains Mono, monospace" font-size="11">x</text>
+        <text x="225" y="320" text-anchor="middle" fill="#93afe3" font-family="JetBrains Mono, monospace" font-size="11">σ(Wx + b)</text>
+        <text x="370" y="210" text-anchor="middle" fill="#fbf1d6" font-family="JetBrains Mono, monospace" font-size="11">ŷ</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<main>
+  <section class="section" id="temas">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="overline">Los apuntes</span><h2>Tres temas, seis prácticas</h2></div>
+        <p>Cada tema empieza con la teoría (con diagramas y fórmulas) y sigue con sus prácticas: qué se pedía, cómo se resolvió, el código clave sección a sección y un resumen final.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <div class="card-top"><span class="tag">Tema 1</span><span class="card-num">01</span></div>
+          <h3>Redes neuronales artificiales</h3>
+          <p>ML y deep learning, neurona y MLP, activaciones, pérdidas, retropropagación, optimizadores, hiperparámetros y generalización.</p>
+          <ul><li><strong>P0</strong> · Perceptrón 1–12–1 desde cero con NumPy (regresión)</li><li><strong>P1</strong> · 12 configuraciones de entrenamiento en MNIST</li><li><strong>P2</strong> · Clasificador par / impar</li></ul>
+          <div class="card-foot"><a class="chip-link" href="apuntes/tema-1.html">Abrir apuntes →</a><a class="chip-link" href="test.html#tema=T1">Test T1</a></div>
+        </article>
+        <article class="card">
+          <div class="card-top"><span class="tag">Tema 2</span><span class="card-num">02</span></div>
+          <h3>Redes convolucionales</h3>
+          <p>Convolución, stride, padding, pooling, BatchNorm, Dropout, ejercicios de tamaños, LeNet → DenseNet y transfer learning.</p>
+          <ul><li><strong>P3</strong> · 10 arquitecturas CNN comparadas por pares</li><li><strong>P4</strong> · 26 propuestas de transfer learning (PyTorch)</li></ul>
+          <div class="card-foot"><a class="chip-link" href="apuntes/tema-2.html">Abrir apuntes →</a><a class="chip-link" href="test.html#tema=T2">Test T2</a></div>
+        </article>
+        <article class="card">
+          <div class="card-top"><span class="tag gold">Tema 3</span><span class="card-num">03</span></div>
+          <h3>Redes generativas antagónicas</h3>
+          <p>Generador y discriminador, juego minimax, pérdida no saturante, inestabilidades, colapso de modos, IS, FID y variantes.</p>
+          <ul><li><strong>P5</strong> · GAN sobre MNIST: curvas de error y métricas</li></ul>
+          <div class="card-foot"><a class="chip-link" href="apuntes/tema-3.html">Abrir apuntes →</a><a class="chip-link" href="test.html#tema=T3">Test T3</a></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="mapa" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="overline">El mapa de estudio</span><h2>Qué merece tu memoria y qué no</h2></div>
+        <p>El test pregunta sobre todo por <strong>conceptos</strong>, por <strong>elegir la opción adecuada</strong> (capa, pérdida, optimizador) y por <strong>cálculos cortos</strong>. Las cifras exactas de las prácticas importan menos que saber explicarlas.</p>
+      </div>
+      <div class="map-grid">
+        <article class="map-card">
+          <span class="tag">Tema 1</span>
+          <h3>Fundamentos y entrenamiento</h3>
+          <h4>Tienes que dominar</h4>
+          <ul>
+            <li>Salida + pérdida según el problema: lineal+MSE, sigmoide+BCE, softmax+(sparse) CCE.</li>
+            <li>Derivadas: $\sigma(1-\sigma)$, $1-\tanh^2$, ReLU; gradiente del MSE $2(\hat y-y)/N$.</li>
+            <li>Contar parámetros de una Dense e iteraciones por época $\lceil N/B\rceil$.</li>
+            <li>SGD / AdaGrad / RMSprop / Adam: qué hace cada uno.</li>
+            <li>Sobreajuste vs subajuste, validación, parada temprana, Dropout, fuga de datos.</li>
+          </ul>
+          <h4>Basta con reconocer</h4>
+          <p style="color:var(--ink-2);font-size:.92rem;margin:0">Lista de frameworks y sus creadores, tipos de aprendizaje y variantes supervisadas.</p>
+        </article>
+        <article class="map-card t2">
+          <span class="tag">Tema 2</span>
+          <h3>Convoluciones y transferencia</h3>
+          <h4>Tienes que dominar</h4>
+          <ul>
+            <li>Fórmula $\lfloor(n-k+2p)/s\rfloor+1$ y los ejercicios de 200×200.</li>
+            <li>Parámetros de una conv: $(k\cdot k\cdot C_{in}+1)\cdot C_{out}$.</li>
+            <li>Convolución a mano (y diferencia con la correlación cruzada).</li>
+            <li>BN tras la conv y antes de la activación; Dropout tras pooling, menor en conv.</li>
+            <li>ResNet suma / DenseNet concatena / Inception 1×1 / VGG 3×3.</li>
+            <li>Congelar vs ajuste fino, lr baja, adaptar entrada a ImageNet.</li>
+          </ul>
+          <h4>Basta con reconocer</h4>
+          <p style="color:var(--ink-2);font-size:.92rem;margin:0">Años y autores de cada arquitectura y el número de capas de las variantes.</p>
+        </article>
+        <article class="map-card t3">
+          <span class="tag gold">Tema 3</span>
+          <h3>GAN</h3>
+          <h4>Tienes que dominar</h4>
+          <ul>
+            <li>Papel de G y D, etiquetas 1/0, BCE y minimax.</li>
+            <li>Equilibrio $D=0{,}5$, pérdidas $=\ln 2$.</li>
+            <li>Por qué <code>detach()</code> en el paso de D y no en el de G.</li>
+            <li>Pérdida no saturante del generador.</li>
+            <li>IS (↑, calidad + diversidad) y FID (↓, μ y Σ); colapso de modos.</li>
+          </ul>
+          <h4>Basta con reconocer</h4>
+          <p style="color:var(--ink-2);font-size:.92rem;margin:0">Variantes (cGAN, DCGAN, CycleGAN, StyleGAN) y su idea en una frase.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="practicas">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="overline">Las prácticas</span><h2>Ve directamente a la que necesites</h2></div>
+        <p>Cada práctica tiene su resumen (qué se pedía y cómo se hizo), el recorrido por el notebook con el código importante y su propio test.</p>
+      </div>
+      <div class="timeline">
+        <a class="tl-item" href="apuntes/tema-1.html#p0"><span class="tag">P0</span><b>Perceptrón desde cero</b><span>NumPy, backprop y Adam a mano</span></a>
+        <a class="tl-item" href="apuntes/tema-1.html#p1"><span class="tag">P1</span><b>Hiperparámetros</b><span>3 optimizadores × épocas × lote</span></a>
+        <a class="tl-item" href="apuntes/tema-1.html#p2"><span class="tag">P2</span><b>Par / impar</b><span>Salida sigmoide, Dropout, validación</span></a>
+        <a class="tl-item" href="apuntes/tema-2.html#p3"><span class="tag">P3</span><b>CNN para MNIST</b><span>10 arquitecturas por pares</span></a>
+        <a class="tl-item" href="apuntes/tema-2.html#p4"><span class="tag">P4</span><b>Transfer learning</b><span>ImageNet → dígitos, ajuste fino</span></a>
+        <a class="tl-item" href="apuntes/tema-3.html#p5"><span class="tag gold">P5</span><b>GAN</b><span>Curvas de error, IS y FID</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:1.5rem;flex-wrap:wrap;background:linear-gradient(120deg,var(--navy-900),var(--navy-700));border:0;color:#fff">
+        <div>
+          <span class="overline" style="color:var(--navy-300)">Cómo usar el test</span>
+          <h2 style="color:#fff;margin:.4rem 0 .5rem;font-size:1.5rem">Práctica guiada → repaso de fallos → simulacro</h2>
+          <p style="color:var(--navy-200);margin:0;max-width:44rem">Primero responde por temas con corrección inmediata. Después usa «Repasar fallos» hasta vaciarlo. Por último, haz simulacros de 20–30 preguntas con penalización para medirte.</p>
+        </div>
+        <a class="btn btn-primary" href="test.html">Ir al test ↗</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap"><span>AC·II · Apuntes de Aprendizaje Computacional II</span><span>Material de estudio basado en las diapositivas y prácticas de la asignatura</span></div>
+</footer>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var bank = window.PREGUNTAS || [];
+  document.getElementById("n-preg").textContent = bank.length;
+  document.getElementById("n-code").textContent = bank.filter(function (q) { return q.k === "codigo" || q.k === "calculo"; }).length;
+});
+</script>
+</body>
+</html>

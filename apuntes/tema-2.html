@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tema 2 · Redes convolucionales — AC·II</title>
+<meta name="description" content="Apuntes del Tema 2 de Aprendizaje Computacional II: convolución, pooling, arquitecturas CNN, transfer learning y prácticas 3 y 4.">
+<script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/site.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script defer src="../assets/js/site.js"></script>
+</head>
+<body>
+<div class="progress-line"></div>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-2M7 7l3 5M7 17l3-5M7 17l3 2M14 5l3 6M14 12h3M14 19l3-6"/></svg></span> AC·II <small>Aprendizaje Computacional II</small></a>
+  <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="../index.html">Inicio</a>
+    <a href="tema-1.html">Tema 1 · RNA</a>
+    <a href="tema-2.html" aria-current="page">Tema 2 · CNN</a>
+    <a href="tema-3.html">Tema 3 · GAN</a>
+    <a href="../test.html">Test</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="../index.html">Inicio</a> / Tema 2</div>
+    <h1>Tema 2 · Redes neuronales convolucionales</h1>
+    <p>Por qué las capas densas no bastan para imágenes, cómo funciona una convolución, cómo calcular tamaños y parámetros, las arquitecturas clásicas (LeNet → DenseNet) y el aprendizaje por transferencia. Con las prácticas 3 y 4 explicadas.</p>
+    <div class="pill-row">
+      <a href="#t2-intro">Teoría</a>
+      <a href="#t2-ejercicios">Ejercicios resueltos</a>
+      <a href="#p3">Práctica 3 · CNN propia</a>
+      <a href="#p4">Práctica 4 · Transfer learning</a>
+      <a href="../test.html#tema=T2">Test del tema ↗</a>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc" aria-label="Índice del tema">
+    <details open><summary class="overline" style="cursor:pointer;list-style:none">Contenido</summary>
+    <ol data-auto></ol>
+    </details>
+  </aside>
+
+  <main class="notes">
+  <div class="part-title" data-part="Parte I · Teoría"><div><span>Parte I</span><h2>Teoría</h2></div></div>
+
+  <!-- ============================================================ 1 -->
+  <section id="t2-intro">
+    <h2 class="sec" data-short="¿Por qué convoluciones?"><span class="n">1</span> ¿Por qué redes convolucionales?</h2>
+    <p>Las CNN se diseñaron para procesar y clasificar sobre todo <strong>imágenes, voz y series temporales</strong> (LeCun y Bengio, 1995). El problema de una capa densa con una imagen es doble: <strong>no es invariante a traslaciones</strong> (un trazo desplazado unos píxeles activa pesos totalmente distintos) y tiene <strong>muchísimos parámetros</strong> (cada píxel conectado a cada neurona).</p>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 640 210" width="640" role="img" aria-label="Capa densa frente a convolución">
+        <text x="150" y="20" text-anchor="middle" class="s-txt s-bold">Capa densa</text>
+        <g>
+          <rect x="30" y="40" width="100" height="100" class="s-box"/>
+          <path d="M30 60 H130 M30 80 H130 M30 100 H130 M30 120 H130 M50 40 V140 M70 40 V140 M90 40 V140 M110 40 V140" class="s-thin"/>
+          <circle cx="250" cy="60" r="10" class="s-navy2"/><circle cx="250" cy="90" r="10" class="s-navy2"/><circle cx="250" cy="120" r="10" class="s-navy2"/>
+          <path d="M40 50 L240 60 M40 50 L240 90 M40 50 L240 120 M120 130 L240 60 M120 130 L240 90 M120 130 L240 120 M80 90 L240 60 M80 90 L240 90 M80 90 L240 120 M100 70 L240 120 M60 110 L240 60" class="s-thin"/>
+          <text x="150" y="170" text-anchor="middle" class="s-mut">cada píxel ↔ cada neurona</text>
+          <text x="150" y="186" text-anchor="middle" class="s-mut">28×28 → 128: 100 352 pesos</text>
+        </g>
+        <text x="470" y="20" text-anchor="middle" class="s-txt s-bold">Capa convolucional</text>
+        <g>
+          <rect x="350" y="40" width="100" height="100" class="s-box"/>
+          <path d="M350 60 H450 M350 80 H450 M350 100 H450 M350 120 H450 M370 40 V140 M390 40 V140 M410 40 V140 M430 40 V140" class="s-thin"/>
+          <rect x="350" y="40" width="60" height="60" class="s-gold" style="fill-opacity:.45"/>
+          <rect x="390" y="80" width="60" height="60" class="s-soft" style="fill-opacity:.45"/>
+          <rect x="520" y="50" width="80" height="80" class="s-box2"/>
+          <path d="M540 50 V130 M560 50 V130 M580 50 V130 M520 70 H600 M520 90 H600 M520 110 H600" class="s-thin"/>
+          <rect x="520" y="50" width="20" height="20" style="fill:var(--gold)"/><rect x="560" y="90" width="20" height="20" class="s-accf"/>
+          <path d="M410 70 L520 60" class="s-goldl"/><path d="M450 110 L560 100" class="s-acc"/>
+          <text x="470" y="170" text-anchor="middle" class="s-mut">el MISMO filtro 3×3 recorre la imagen</text>
+          <text x="470" y="186" text-anchor="middle" class="s-mut">32 filtros 3×3: 32·(9+1) = 320 parámetros</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Localidad + pesos compartidos: el mismo detector se aplica en todas las posiciones.</figcaption>
+    </figure>
+    <div class="callout key"><div class="ct">◆ Las tres ideas que dan invarianza a traslaciones y distorsiones</div>
+      <ol>
+        <li><strong>Localidad</strong>: cada neurona mira solo una pequeña región (campo receptivo).</li>
+        <li><strong>Pesos compartidos</strong>: el mismo filtro se aplica en toda la imagen → detecta un rasgo esté donde esté, con muchos menos parámetros.</li>
+        <li><strong>Submuestreo</strong> espacial/temporal (pooling, stride): reduce resolución y da robustez a pequeños desplazamientos.</li>
+      </ol>
+      <p>Además, las convoluciones se pueden calcular <strong>en paralelo</strong> (GPU).</p></div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="t2-conv">
+    <h2 class="sec" data-short="La operación de convolución"><span class="n">2</span> La operación de convolución</h2>
+    <p>La convolución mide el <strong>solapamiento entre dos funciones cuando una se invierte y se desplaza</strong>:</p>
+    <div class="formula-grid">
+      <div class="formula">$$(f*g)(x)=\int f(z)\,g(x-z)\,dz$$<small>continua</small></div>
+      <div class="formula">$$(f*g)(x,y)=\sum_i\sum_j f(i,j)\,g(x-i,\,y-j)$$<small>2D discreta</small></div>
+    </div>
+    <p>En la práctica, una capa <code>Conv2D</code> desliza un <strong>filtro (kernel)</strong> sobre la imagen y, en cada posición, multiplica elemento a elemento y suma. Ese resultado forma el <strong>mapa de características</strong> (<em>feature map</em>).</p>
+    <figure class="diagram">
+      <div style="display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;justify-content:center">
+        <div><div class="s-mut" style="font-size:.8rem;margin-bottom:.3rem;color:var(--muted)">Entrada con padding 1</div>
+          <div class="grid-cells" style="grid-template-columns:repeat(5,34px)">
+            <span class="z h">0</span><span class="z h">0</span><span class="z h">0</span><span class="z">0</span><span class="z">0</span>
+            <span class="z h">0</span><span class="h">1</span><span class="h">2</span><span>3</span><span class="z">0</span>
+            <span class="z h">0</span><span class="h">4</span><span class="h">5</span><span>6</span><span class="z">0</span>
+            <span class="z">0</span><span>7</span><span>8</span><span>9</span><span class="z">0</span>
+            <span class="z">0</span><span class="z">0</span><span class="z">0</span><span class="z">0</span><span class="z">0</span>
+          </div></div>
+        <div style="font:700 1.4rem var(--font-mono);color:var(--accent)">⊗</div>
+        <div><div style="font-size:.8rem;margin-bottom:.3rem;color:var(--muted)">Kernel (Sobel horizontal)</div>
+          <div class="grid-cells" style="grid-template-columns:repeat(3,34px)">
+            <span>1</span><span>2</span><span>1</span><span>0</span><span>0</span><span>0</span><span>−1</span><span>−2</span><span>−1</span>
+          </div></div>
+        <div style="font:700 1.4rem var(--font-mono);color:var(--accent)">=</div>
+        <div><div style="font-size:.8rem;margin-bottom:.3rem;color:var(--muted)">Salida 3×3 (correlación)</div>
+          <div class="grid-cells" style="grid-template-columns:repeat(3,38px)">
+            <span class="h">−13</span><span>−20</span><span>−17</span><span>−18</span><span>−24</span><span>−18</span><span>13</span><span>20</span><span>17</span>
+          </div></div>
+      </div>
+      <figcaption>Posición resaltada: $0\cdot1+0\cdot2+0\cdot1+0\cdot0+1\cdot0+2\cdot0+0\cdot(-1)+4\cdot(-2)+5\cdot(-1)=-13$.</figcaption>
+    </figure>
+    <div class="callout exam"><div class="ct">★ Convolución «de verdad» frente a correlación cruzada</div>
+      <p>La fórmula de las diapositivas <strong>invierte el kernel</strong> (giro de 180°). Las capas <code>Conv2D</code> de Keras y PyTorch en realidad calculan la <strong>correlación cruzada</strong> (sin invertir), pero como el filtro se aprende da igual: aprendería el filtro ya invertido. En un ejercicio a mano, si el kernel es simétrico bajo un giro de 180° (como $\left(\begin{smallmatrix}1&amp;2\\2&amp;1\end{smallmatrix}\right)$) ambas coinciden; si no, el resultado cambia de signo o de orden. Para el Sobel de arriba, la convolución con inversión da exactamente el mismo resultado con <strong>signo opuesto</strong>.</p></div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="t2-capa">
+    <h2 class="sec" data-short="Capas convolucionales"><span class="n">3</span> Capas convolucionales: filtro, stride y padding</h2>
+    <div class="formula">$$\text{salida}=\left\lfloor\frac{\text{entrada}-\text{kernel}+2\cdot\text{padding}}{\text{stride}}\right\rfloor+1$$</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Hiperparámetro</th><th>Qué controla</th><th>Efecto</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Tamaño del filtro</strong></td><td>Región que mira cada neurona</td><td>Grande: más contexto y patrones complejos, mapas <strong>más pequeños</strong>. Pequeño: detalles finos, mapas más grandes</td></tr>
+        <tr><td><strong>Stride</strong></td><td>Cuántas posiciones se mueve el filtro</td><td>Mayor stride → mapa más pequeño, <strong>pierde resolución</strong>. Stride 1 → mapas densos, más detalle</td></tr>
+        <tr><td><strong>Padding</strong></td><td>Relleno (normalmente ceros) alrededor</td><td><code>same</code>: misma dimensión de salida (con stride 1). <code>valid</code> (sin padding): salida menor y puede perder información del borde</td></tr>
+        <tr><td><strong>Nº de filtros</strong></td><td>Canales de salida</td><td>Cada filtro produce un mapa; más filtros = más rasgos distintos</td></tr>
+      </tbody>
+    </table></div>
+    <h3 id="t2-params">Número de parámetros</h3>
+    <div class="formula">$$\text{params Conv2D}=(k_h\cdot k_w\cdot C_{in}+1)\cdot C_{out}\qquad\text{forma de salida}=(H',W',C_{out})$$</div>
+    <p>Un filtro tiene profundidad igual a los canales de entrada: un filtro 3×3 sobre una entrada de 32 canales tiene 3·3·32 pesos + 1 sesgo. Ejemplos de la P3:</p>
+    <ul>
+      <li><code>Conv2D(32, 3)</code> sobre $(28,28,1)$: $(3\cdot3\cdot1+1)\cdot32=\mathbf{320}$; salida $(26,26,32)$.</li>
+      <li><code>Conv2D(64, 3)</code> sobre $(13,13,32)$: $(3\cdot3\cdot32+1)\cdot64=\mathbf{18\,496}$; salida $(11,11,64)$.</li>
+      <li>El tamaño espacial de la entrada <strong>no</strong> influye en los parámetros de una conv (sí en los de la Dense posterior).</li>
+    </ul>
+    <h3 id="t2-campo">Campo receptivo</h3>
+    <p>Dos convoluciones 3×3 seguidas «ven» una región de <strong>5×5</strong> de la entrada; tres, de 7×7. Pero usan menos parámetros que una 5×5 ($2\cdot9C^2=18C^2$ frente a $25C^2$) y meten <strong>una no linealidad más</strong>. Esa es la idea de VGG.</p>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="t2-pool">
+    <h2 class="sec" data-short="Pooling"><span class="n">4</span> Capas de agrupamiento (pooling)</h2>
+    <figure class="diagram">
+      <div style="display:flex;flex-wrap:wrap;gap:1.6rem;align-items:center;justify-content:center">
+        <div><div style="font-size:.8rem;margin-bottom:.3rem;color:var(--muted)">Mapa 4×4</div>
+          <div class="grid-cells" style="grid-template-columns:repeat(4,34px)">
+            <span class="h">1</span><span class="h">3</span><span>2</span><span>1</span>
+            <span class="h">4</span><span class="h">6</span><span>5</span><span>0</span>
+            <span>3</span><span>1</span><span style="background:var(--gold-soft);border-color:var(--gold)">1</span><span style="background:var(--gold-soft);border-color:var(--gold)">2</span>
+            <span>0</span><span>2</span><span style="background:var(--gold-soft);border-color:var(--gold)">7</span><span style="background:var(--gold-soft);border-color:var(--gold)">2</span>
+          </div></div>
+        <div style="font:600 .85rem var(--font-mono);color:var(--muted)">ventana 2×2<br>stride 2 →</div>
+        <div><div style="font-size:.8rem;margin-bottom:.3rem;color:var(--muted)">Max pooling</div>
+          <div class="grid-cells" style="grid-template-columns:repeat(2,38px)"><span class="h">6</span><span>5</span><span>3</span><span style="background:var(--gold-soft);border-color:var(--gold)">7</span></div></div>
+        <div><div style="font-size:.8rem;margin-bottom:.3rem;color:var(--muted)">Average pooling</div>
+          <div class="grid-cells" style="grid-template-columns:repeat(2,38px)"><span class="h">3,5</span><span>2</span><span>1,5</span><span style="background:var(--gold-soft);border-color:var(--gold)">3</span></div></div>
+      </div>
+      <figcaption>Max se queda con la respuesta más fuerte («¿aparece el rasgo?»); average promedia y lo diluye con el fondo.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>Reducción de dimensionalidad</strong>: aplica una función sobre una ventana móvil del mapa de características.</li>
+      <li><strong>Invarianza a traslaciones</strong>: robustez frente a pequeños desplazamientos o distorsiones.</li>
+      <li><strong>Preserva rasgos</strong>: conserva lo importante que detectaron los filtros y descarta detalle irrelevante (ruido).</li>
+      <li>Tamaño de ventana y stride definen cómo se mueve. <strong>No tiene parámetros aprendibles</strong>. Usa la misma fórmula de tamaño de salida.</li>
+      <li><strong>Average pooling = caso especial de una convolución</strong> (filtro con todos los pesos $1/k^2$, fijo).</li>
+      <li><strong>Global Average Pooling (GAP)</strong>: promedia cada mapa entero a un número → $(H,W,C)\to(C)$. Sustituye a Flatten + Dense grandes (GoogLeNet). Pierde la información de <em>dónde</em> está cada rasgo.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="t2-otras">
+    <h2 class="sec" data-short="Activación, BatchNorm, Dropout"><span class="n">5</span> Otras capas: activación, BatchNorm y Dropout</h2>
+    <div class="compare">
+      <div><h5>Activación</h5><p>Permite capturar rasgos no lineales y jerarquías espaciales complejas. <strong>Sin activación, varias convoluciones equivalen a una sola convolución lineal.</strong></p></div>
+      <div><h5>Batch Normalization</h5><p>Normaliza las activaciones (media y varianza del lote) → <strong>acelera y estabiliza</strong> el entrenamiento. Se coloca <strong>después de la convolución y antes de la activación</strong>. Hace innecesario el sesgo de la conv (<code>use_bias=False</code>), porque BN ya tiene su desplazamiento β.</p></div>
+      <div><h5>Dropout</h5><p>Desactiva al azar neuronas durante el entrenamiento → previene sobreajuste, fuerza rasgos redundantes, mejora generalización y reduce la correlación entre mapas. <strong>Tasas más bajas en las capas conv que en las densas</strong> (P3: 0,25 frente a 0,5) y <strong>normalmente tras el pooling</strong>.</p></div>
+      <div><h5>Orden típico de un bloque</h5><p><code>Conv2D(use_bias=False) → BatchNorm → ReLU → MaxPool → Dropout(0,25)</code><br>y al final <code>Flatten → Dense → Dropout(0,5) → Dense(softmax)</code>.</p></div>
+    </div>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 800 190" width="800" role="img" aria-label="Pipeline de una CNN típica">
+        <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <text x="270" y="16" text-anchor="middle" class="s-txt s-bold">extracción de características</text><text x="600" y="16" text-anchor="middle" class="s-txt s-bold">clasificador</text>
+        <rect x="10" y="40" width="70" height="70" class="s-box2"/>
+        <g><rect x="118" y="30" width="78" height="78" class="s-soft"/><rect x="112" y="36" width="78" height="78" class="s-soft"/><rect x="106" y="42" width="78" height="78" class="s-soft"/></g>
+        <g><rect x="237" y="52" width="46" height="46" class="s-soft"/><rect x="232" y="57" width="46" height="46" class="s-soft"/></g>
+        <g><rect x="342" y="50" width="42" height="42" class="s-soft"/><rect x="337" y="55" width="42" height="42" class="s-soft"/><rect x="332" y="60" width="42" height="42" class="s-soft"/></g>
+        <g><rect x="447" y="62" width="24" height="24" class="s-soft"/><rect x="443" y="66" width="24" height="24" class="s-soft"/></g>
+        <rect x="520" y="25" width="18" height="100" rx="3" class="s-gold"/>
+        <rect x="590" y="45" width="18" height="60" rx="3" class="s-navy2"/>
+        <rect x="650" y="60" width="18" height="30" rx="3" class="s-navy"/>
+        <path d="M82 75 H100 M198 78 H226 M286 78 H326 M388 78 H438 M473 76 H514 M540 75 H584 M610 75 H644" class="s-acc" marker-end="url(#ar5)"/>
+        <g class="s-mono" style="font-size:11px" text-anchor="middle">
+          <text x="45" y="140">28×28×1</text><text x="148" y="140">26×26×32</text><text x="257" y="140">13×13×32</text><text x="358" y="140">11×11×64</text><text x="457" y="140">5×5×64</text><text x="529" y="140">1600</text><text x="599" y="140">128</text><text x="659" y="140">10</text>
+        </g>
+        <g class="s-mut" text-anchor="middle">
+          <text x="45" y="160">entrada</text><text x="148" y="160">Conv 3×3</text><text x="148" y="174">+ ReLU</text><text x="257" y="160">MaxPool 2×2</text><text x="358" y="160">Conv 3×3</text><text x="358" y="174">+ ReLU</text><text x="457" y="160">MaxPool 2×2</text><text x="529" y="160">Flatten</text><text x="599" y="160">Dense</text><text x="659" y="160">softmax</text>
+        </g>
+        <text x="700" y="62" class="s-mut">320 + 18 496</text><text x="700" y="78" class="s-mut">+ 204 928 + 1 290</text><text x="700" y="96" class="s-txt s-bold">= 225 034</text><text x="700" y="112" class="s-mut">parámetros</text>
+      </svg>
+      </div>
+      <figcaption>La red <code>cnn-2conv-maxpool</code> de la P3. Casi todos los parámetros están en la capa densa (1600·128 + 128).</figcaption>
+    </figure>
+    <div class="mini-quiz"><p>Practica cálculos de tamaños y parámetros.</p><a class="btn btn-solid" href="../test.html#tema=T2&amp;tipo=calculo">Ejercicios de cálculo T2 →</a></div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="t2-ejercicios">
+    <h2 class="sec" data-short="Ejercicios resueltos"><span class="n">6</span> Ejercicios de las diapositivas, resueltos</h2>
+    <h3 id="t2-ej-conv">Convoluciones a mano</h3>
+    <p>Entrada $A=\left(\begin{smallmatrix}1&amp;2&amp;3\\4&amp;5&amp;6\\7&amp;8&amp;9\end{smallmatrix}\right)$, kernel Sobel $K=\left(\begin{smallmatrix}1&amp;2&amp;1\\0&amp;0&amp;0\\-1&amp;-2&amp;-1\end{smallmatrix}\right)$, kernel $K_2=\left(\begin{smallmatrix}1&amp;2\\2&amp;1\end{smallmatrix}\right)$. Resultados con <strong>correlación cruzada</strong> (lo que hace <code>Conv2D</code>); con la convolución con inversión los del Sobel cambian de signo.</p>
+    <details class="solution"><summary>a) A ⊗ K sin padding (3×3 ⊗ 3×3 → 1×1)</summary><div>
+      <p>Una sola posición: $(1+4+3)+0-(7+16+9)=8-32=\mathbf{-24}$ (con inversión: $+24$). Tamaño: $(3-3+0)/1+1=1$.</p></div></details>
+    <details class="solution"><summary>b) A con padding 1 ⊗ K (5×5 ⊗ 3×3 → 3×3)</summary><div>
+      <p>Cada salida = (fila de arriba ponderada 1,2,1) − (fila de abajo ponderada 1,2,1):</p>
+      <p>$$\begin{pmatrix}-13&amp;-20&amp;-17\\-18&amp;-24&amp;-18\\13&amp;20&amp;17\end{pmatrix}\quad(\text{con inversión: signos opuestos})$$</p>
+      <p>Es un detector de bordes horizontales: responde a cambios de intensidad de arriba abajo. Tamaño: $(3-3+2)/1+1=3$ (<em>same</em>).</p></div></details>
+    <details class="solution"><summary>c) A ⊗ K₂ sin padding (3×3 ⊗ 2×2 → 2×2)</summary><div>
+      <p>$1\cdot1+2\cdot2+4\cdot2+5\cdot1=18$; $2+6+10+6=24$; $4+10+14+8=36$; $5+12+16+9=42$:</p>
+      <p>$$\begin{pmatrix}18&amp;24\\36&amp;42\end{pmatrix}$$ Como $K_2$ es simétrico bajo giro de 180°, convolución y correlación dan lo mismo.</p></div></details>
+    <details class="solution"><summary>d) K ⊗ (A con padding) — los operandos intercambiados</summary><div>
+      <p>La convolución es <strong>conmutativa</strong>: $f*g=g*f$. Intercambiar imagen y kernel da el mismo resultado que en (b) (con la definición con inversión). Es el objetivo del ejercicio: comprobar esa propiedad.</p></div></details>
+
+    <h3 id="t2-ej-dim">Dimensiones de salida (entrada 200×200)</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Cadena</th><th>Tras la convolución</th><th>Tras el pooling</th></tr></thead>
+      <tbody>
+        <tr><td>Conv 3×3, s=1, p=0 → MaxPool 3×3, s=1</td><td>$(200-3+0)/1+1=198$</td><td>$(198-3)/1+1=\mathbf{196\times196}$</td></tr>
+        <tr><td>Conv 3×3, s=2, p=1 → AvgPool 3×3, s=1</td><td>$\lfloor(200-3+2)/2\rfloor+1=\lfloor99{,}5\rfloor+1=100$</td><td>$(100-3)/1+1=\mathbf{98\times98}$</td></tr>
+        <tr><td>Conv 5×5, s=1, p=1 → AvgPool 5×5, s=2</td><td>$(200-5+2)/1+1=198$</td><td>$\lfloor(198-5)/2\rfloor+1=96+1=\mathbf{97\times97}$</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn"><div class="ct">✕ Errores típicos en estos cálculos</div><p>Olvidar el <strong>+1</strong>, olvidar el <strong>suelo</strong> (⌊ ⌋) cuando la división no es exacta, o sumar el padding una sola vez (es $2p$, a cada lado). El número de <strong>canales</strong> de salida lo decide el nº de filtros, no la fórmula.</p></div>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="t2-modelos">
+    <h2 class="sec" data-short="Modelos preentrenados"><span class="n">7</span> Arquitecturas clásicas (modelos preentrenados)</h2>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 700 110" width="700" role="img" aria-label="Línea temporal de arquitecturas">
+        <path d="M20 55 H680" class="s-line"/>
+        <g><circle cx="60" cy="55" r="7" class="s-navy"/><text x="60" y="35" text-anchor="middle" class="s-txt s-bold">LeNet-5</text><text x="60" y="82" text-anchor="middle" class="s-mono">1998</text><text x="60" y="98" text-anchor="middle" class="s-mut">dígitos</text></g>
+        <g><circle cx="190" cy="55" r="7" class="s-navy"/><text x="190" y="35" text-anchor="middle" class="s-txt s-bold">AlexNet</text><text x="190" y="82" text-anchor="middle" class="s-mono">2012</text><text x="190" y="98" text-anchor="middle" class="s-mut">ReLU, Dropout, GPU</text></g>
+        <g><circle cx="320" cy="55" r="7" class="s-navy"/><text x="320" y="35" text-anchor="middle" class="s-txt s-bold">VGG</text><text x="320" y="82" text-anchor="middle" class="s-mono">2014</text><text x="320" y="98" text-anchor="middle" class="s-mut">bloques 3×3</text></g>
+        <g><circle cx="440" cy="55" r="7" class="s-navy"/><text x="440" y="35" text-anchor="middle" class="s-txt s-bold">GoogLeNet</text><text x="440" y="82" text-anchor="middle" class="s-mono">2014</text><text x="440" y="98" text-anchor="middle" class="s-mut">Inception, GAP</text></g>
+        <g><circle cx="560" cy="55" r="7" class="s-navy"/><text x="560" y="35" text-anchor="middle" class="s-txt s-bold">ResNet</text><text x="560" y="82" text-anchor="middle" class="s-mono">2015</text><text x="560" y="98" text-anchor="middle" class="s-mut">suma (skip)</text></g>
+        <g><circle cx="660" cy="55" r="7" style="fill:var(--gold)"/><text x="660" y="35" text-anchor="middle" class="s-txt s-bold">DenseNet</text><text x="660" y="82" text-anchor="middle" class="s-mono">2017</text><text x="660" y="98" text-anchor="middle" class="s-mut">concatenación</text></g>
+      </svg>
+      </div>
+    </figure>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Modelo</th><th>Rasgos clave (diapositivas)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>LeNet-5</strong> (LeCun, 1998)</td><td>Dígitos manuscritos; demostró que se podía entrenar una CNN con backprop. 7 capas sin contar la entrada: 2 conv (6 filtros 5×5 y 16 filtros 5×5) con <strong>sigmoide/tanh</strong>, 2 <strong>average pooling</strong> 2×2 stride 2, 3 densas (120, 84, 10). Entrada 32×32. <em>(La diapositiva dice «16 filtros de 10×10»: en realidad son filtros 5×5 que producen mapas de 10×10.)</em></td></tr>
+        <tr><td><strong>AlexNet</strong> (Krizhevsky, 2012)</td><td>Ganó ImageNet 2012; primera CNN «moderna». 5 conv + 3 densas. Introdujo <strong>ReLU</strong> (entrenamiento más rápido), <strong>max pooling solapado</strong>, <strong>LRN</strong> (Local Response Normalization), <strong>Dropout</strong> en las densas, filtros grandes al principio y muchos canales. Entrenada en 2 GPU con data augmentation, weight decay y SGD con momentum.</td></tr>
+        <tr><td><strong>VGG</strong> (Oxford, 2014)</td><td>Introdujo la idea de <strong>bloques</strong>. Profunda y uniforme: 16–19 capas, casi todo conv <strong>3×3</strong> + ReLU + max pooling, y 3 densas. Demostró que <strong>más profundidad con filtros pequeños uniformes</strong> mejora. Muy usada para transfer learning (VGG-11/16/19).</td></tr>
+        <tr><td><strong>GoogLeNet / Inception</strong> (2014)</td><td>Ganó ImageNet 2014. <strong>Módulo Inception</strong>: 4 ramas paralelas con filtros 1×1, 3×3, 5×5 (y pooling); las <strong>conv 1×1 reducen dimensionalidad</strong>. 22 capas con pocos parámetros; <strong>Global Average Pooling</strong> en vez de densas grandes; <strong>2 clasificadores auxiliares</strong> durante el entrenamiento contra el desvanecimiento del gradiente. Más eficiente que VGG.</td></tr>
+        <tr><td><strong>ResNet</strong> (2015)</td><td><strong>Bloques residuales</strong>: la entrada se <strong>suma</strong> a la salida ($y=F(x)+x$) → aprende funciones residuales; las <em>skip connections</em> dejan fluir el gradiente. Variantes de 34, 50, 101, 152 capas; las profundas usan bloques <strong>bottleneck</strong>. BatchNorm + ReLU tras las convoluciones.</td></tr>
+        <tr><td><strong>DenseNet</strong> (2017)</td><td>Como ResNet pero con <strong>concatenación</strong> en vez de suma: <strong>cada capa recibe todas las anteriores</strong>. Bloques densos (BN + ReLU + conv) unidos por <strong>capas de transición</strong> (BN, conv 1×1, average pooling). Mucha reutilización de rasgos, gradiente fuerte; alto coste computacional. Variantes 121, 169, 201, 264.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="fig-row">
+      <figure class="diagram">
+        <svg viewBox="0 0 220 230" width="220" role="img" aria-label="Bloque residual">
+          <defs><marker id="ar6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+          <text x="80" y="18" text-anchor="middle" class="s-mono">x</text>
+          <path d="M80 24 V44" class="s-acc" marker-end="url(#ar6)"/>
+          <rect x="30" y="46" width="100" height="30" rx="6" class="s-soft"/><text x="80" y="66" text-anchor="middle" class="s-txt">conv-BN-ReLU</text>
+          <path d="M80 76 V96" class="s-acc" marker-end="url(#ar6)"/>
+          <rect x="30" y="98" width="100" height="30" rx="6" class="s-soft"/><text x="80" y="118" text-anchor="middle" class="s-txt">conv-BN</text>
+          <path d="M80 128 V150" class="s-acc" marker-end="url(#ar6)"/>
+          <circle cx="80" cy="164" r="13" class="s-gold"/><text x="80" y="169" text-anchor="middle" class="s-txt s-bold">+</text>
+          <path d="M80 34 H180 V164 H96" class="s-goldl" marker-end="url(#ar6)"/><text x="130" y="27" text-anchor="middle" class="s-mut">identidad</text>
+          <path d="M80 177 V200" class="s-acc" marker-end="url(#ar6)"/><text x="80" y="220" text-anchor="middle" class="s-mono">ReLU(F(x) + x)</text>
+        </svg>
+        <figcaption><strong>ResNet</strong>: suma (skip connection)</figcaption>
+      </figure>
+      <figure class="diagram">
+        <svg viewBox="0 0 240 230" width="240" role="img" aria-label="Bloque denso">
+          <rect x="10" y="90" width="34" height="50" rx="5" class="s-soft"/><text x="27" y="160" text-anchor="middle" class="s-mono">x₀</text>
+          <rect x="70" y="90" width="34" height="50" rx="5" class="s-soft"/><text x="87" y="160" text-anchor="middle" class="s-mono">x₁</text>
+          <rect x="130" y="90" width="34" height="50" rx="5" class="s-soft"/><text x="147" y="160" text-anchor="middle" class="s-mono">x₂</text>
+          <rect x="190" y="90" width="34" height="50" rx="5" class="s-soft"/><text x="207" y="160" text-anchor="middle" class="s-mono">x₃</text>
+          <path d="M27 90 C27 50 87 50 87 88 M27 90 C27 30 147 30 147 88 M27 90 C27 14 207 14 207 88" class="s-goldl"/>
+          <path d="M87 90 C87 60 147 60 147 88 M87 90 C87 42 207 42 207 88 M147 90 C147 66 207 66 207 88" class="s-acc"/>
+          <text x="120" y="200" text-anchor="middle" class="s-mut">xₗ = H([x₀, x₁, …, xₗ₋₁])</text>
+          <text x="120" y="218" text-anchor="middle" class="s-mut">[ ] = concatenación de canales</text>
+        </svg>
+        <figcaption><strong>DenseNet</strong>: concatenación de todo lo anterior</figcaption>
+      </figure>
+      <figure class="diagram">
+        <svg viewBox="0 0 260 230" width="260" role="img" aria-label="Módulo Inception">
+          <rect x="90" y="10" width="80" height="26" rx="5" class="s-box"/><text x="130" y="28" text-anchor="middle" class="s-txt">entrada</text>
+          <path d="M130 36 L35 70 M130 36 L100 70 M130 36 L165 70 M130 36 L228 70" class="s-thin"/>
+          <rect x="5" y="70" width="60" height="26" rx="5" class="s-soft"/><text x="35" y="88" text-anchor="middle" class="s-mono" style="font-size:10px">1×1</text>
+          <rect x="70" y="70" width="60" height="26" rx="5" class="s-soft"/><text x="100" y="88" text-anchor="middle" class="s-mono" style="font-size:10px">1×1</text>
+          <rect x="135" y="70" width="60" height="26" rx="5" class="s-soft"/><text x="165" y="88" text-anchor="middle" class="s-mono" style="font-size:10px">1×1</text>
+          <rect x="198" y="70" width="60" height="26" rx="5" class="s-box"/><text x="228" y="88" text-anchor="middle" class="s-mono" style="font-size:10px">pool 3×3</text>
+          <rect x="70" y="112" width="60" height="26" rx="5" class="s-gold"/><text x="100" y="130" text-anchor="middle" class="s-mono" style="font-size:10px">3×3</text>
+          <rect x="135" y="112" width="60" height="26" rx="5" class="s-gold"/><text x="165" y="130" text-anchor="middle" class="s-mono" style="font-size:10px">5×5</text>
+          <rect x="198" y="112" width="60" height="26" rx="5" class="s-soft"/><text x="228" y="130" text-anchor="middle" class="s-mono" style="font-size:10px">1×1</text>
+          <path d="M100 96 V112 M165 96 V112 M228 96 V112 M35 96 L120 168 M100 138 L125 168 M165 138 L135 168 M228 138 L140 168" class="s-thin"/>
+          <rect x="70" y="168" width="120" height="26" rx="5" class="s-navy"/><text x="130" y="186" text-anchor="middle" class="s-white" style="font:600 11px var(--font)">concatenar</text>
+          <text x="130" y="218" text-anchor="middle" class="s-mut">1×1 = reducción de canales</text>
+        </svg>
+        <figcaption><strong>Inception</strong>: 4 ramas en paralelo</figcaption>
+      </figure>
+    </div>
+    <div class="callout exam"><div class="ct">★ La pregunta de siempre</div><p><strong>ResNet suma, DenseNet concatena.</strong> GoogLeNet = ramas paralelas + 1×1 + GAP + clasificadores auxiliares. VGG = bloques 3×3 uniformes. AlexNet = ReLU + Dropout + LRN + max pooling solapado. LeNet = tanh/sigmoide + average pooling.</p></div>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="t2-transfer">
+    <h2 class="sec" data-short="Transfer learning"><span class="n">8</span> Aprendizaje por transferencia (transfer learning)</h2>
+    <p>Las redes preentrenadas en <strong>ImageNet</strong> (1,2 millones de fotografías en color, 1 000 clases, 224×224) han aprendido en sus primeras capas detectores de <strong>bordes, texturas y formas genéricas</strong> que sirven para otros problemas. En lugar de partir de pesos aleatorios, se <strong>reutilizan esos pesos</strong>.</p>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 700 250" width="700" role="img" aria-label="Extracción de características frente a ajuste fino">
+        <text x="20" y="22" class="s-txt s-bold">A · Extracción de características (base congelada)</text>
+        <rect x="20" y="36" width="70" height="44" rx="6" class="s-box"/><text x="55" y="56" text-anchor="middle" class="s-mono" style="font-size:10px">adaptar</text><text x="55" y="70" text-anchor="middle" class="s-mono" style="font-size:10px">entrada</text>
+        <rect x="100" y="36" width="80" height="44" rx="6" class="s-box"/><rect x="190" y="36" width="80" height="44" rx="6" class="s-box"/><rect x="280" y="36" width="80" height="44" rx="6" class="s-box"/><rect x="370" y="36" width="80" height="44" rx="6" class="s-box"/>
+        <text x="140" y="62" text-anchor="middle" class="s-txt">🔒 bloque 1</text><text x="230" y="62" text-anchor="middle" class="s-txt">🔒 bloque 2</text><text x="320" y="62" text-anchor="middle" class="s-txt">🔒 bloque 3</text><text x="410" y="62" text-anchor="middle" class="s-txt">🔒 bloque 4</text>
+        <rect x="470" y="36" width="70" height="44" rx="6" class="s-box"/><text x="505" y="62" text-anchor="middle" class="s-mono" style="font-size:10px">GAP</text>
+        <rect x="560" y="36" width="120" height="44" rx="6" class="s-gold"/><text x="620" y="56" text-anchor="middle" class="s-txt s-bold">cabeza nueva</text><text x="620" y="72" text-anchor="middle" class="s-mut">entrena (lr 10⁻³)</text>
+        <text x="20" y="100" class="s-mut">requires_grad = False / base.trainable = False → las características se calculan una sola vez · muy barato</text>
+
+        <text x="20" y="142" class="s-txt s-bold">B · Ajuste fino (fine-tuning)</text>
+        <rect x="20" y="156" width="70" height="44" rx="6" class="s-box"/><text x="55" y="176" text-anchor="middle" class="s-mono" style="font-size:10px">adaptar</text><text x="55" y="190" text-anchor="middle" class="s-mono" style="font-size:10px">entrada</text>
+        <rect x="100" y="156" width="80" height="44" rx="6" class="s-box"/><rect x="190" y="156" width="80" height="44" rx="6" class="s-box"/><rect x="280" y="156" width="80" height="44" rx="6" class="s-box"/><rect x="370" y="156" width="80" height="44" rx="6" class="s-soft"/>
+        <text x="140" y="182" text-anchor="middle" class="s-txt">🔒 / ✎</text><text x="230" y="182" text-anchor="middle" class="s-txt">🔒 / ✎</text><text x="320" y="182" text-anchor="middle" class="s-txt">🔒 / ✎</text><text x="410" y="182" text-anchor="middle" class="s-txt s-bold">✎ último</text>
+        <rect x="470" y="156" width="70" height="44" rx="6" class="s-box"/><text x="505" y="182" text-anchor="middle" class="s-mono" style="font-size:10px">GAP</text>
+        <rect x="560" y="156" width="120" height="44" rx="6" class="s-gold"/><text x="620" y="176" text-anchor="middle" class="s-txt s-bold">cabeza</text><text x="620" y="192" text-anchor="middle" class="s-mut">de A · lr 10⁻⁴</text>
+        <text x="20" y="222" class="s-mut">parcial: solo el último bloque (✎) · total: toda la base (✎ en todos) · BatchNorm congeladas en modo eval()</text>
+        <text x="20" y="240" class="s-mut">se parte de la cabeza de la fase A para que gradientes grandes de una cabeza aleatoria no destruyan los filtros preentrenados</text>
+      </svg>
+      </div>
+    </figure>
+    <div class="compare">
+      <div><h5>Extracción de características</h5><ul>
+        <li>Se quita el clasificador original y se <strong>congela</strong> toda la base.</li>
+        <li>Solo se entrena una cabeza pequeña (lineal o MLP).</li>
+        <li>Rápido y con pocos parámetros entrenables; funciona bien si el problema se parece a ImageNet.</li></ul></div>
+      <div><h5>Ajuste fino</h5><ul>
+        <li>Se <strong>descongelan</strong> las últimas capas (parcial) o toda la base (total).</li>
+        <li><strong>Tasa de aprendizaje pequeña</strong> (10× menor): el ajuste debe ser sutil.</li>
+        <li>Mejor cuando el dominio es distinto (dígitos grises ≠ fotos en color): las capas altas, especializadas en objetos de ImageNet, se readaptan.</li></ul></div>
+    </div>
+    <h3 id="t2-adaptar">Adaptar la entrada MNIST a una red de ImageNet</h3>
+    <ol>
+      <li><strong>Redimensionar</strong> 28×28 a una resolución mayor (32, 64… nativa 224). A 32×32 AlexNet colapsa (sus mapas llegan a tamaño 0) y las últimas etapas de ResNet/DenseNet trabajan con mapas de 1×1.</li>
+      <li><strong>Replicar el canal gris 3 veces</strong> (las redes esperan RGB).</li>
+      <li><strong>Normalizar con la media y desviación de ImageNet</strong>: $\mu=[0{,}485, 0{,}456, 0{,}406]$, $\sigma=[0{,}229, 0{,}224, 0{,}225]$ (en Keras: el <code>preprocess_input</code> de cada red). Omitirlo fue el fallo de varias entregas.</li>
+    </ol>
+    <p>Dónde están: TensorFlow en <code>tf.keras.applications</code> (<code>VGG16(include_top=False, weights='imagenet')</code>, <code>base.trainable = False</code>); PyTorch en <code>torchvision.models</code> (<code>vgg16(weights=VGG16_Weights.DEFAULT)</code>, <code>p.requires_grad = False</code>).</p>
+    <div class="callout warn"><div class="ct">✕ BatchNorm en el ajuste fino</div><p>Si al descongelar se dejan las BatchNorm en modo entrenamiento, recalcularán sus estadísticas con lotes de dígitos y desajustarán toda la red. Lo recomendado: mantenerlas <strong>congeladas y en modo inferencia</strong> (<code>module.eval()</code> en PyTorch; llamar a la base con <code>training=False</code> en Keras).</p></div>
+  </section>
+
+  <!-- ============================================================ PRÁCTICA 3 -->
+  <div class="part-title" data-part="Parte II · Prácticas"><div><span>Parte II</span><h2>Prácticas del tema</h2></div></div>
+
+  <section id="p3">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Práctica 3 · CNN para MNIST">Práctica 3 · Una CNN para MNIST</h2><span>TensorFlow / Keras · 10 arquitecturas</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Crear una <strong>CNN simple</strong> para clasificar MNIST (10 dígitos).</li>
+          <li>Probar <strong>distintas arquitecturas</strong> combinando las capas vistas en clase y comparar su rendimiento gráfica y numéricamente.</li>
+          <li>Elegir la mejor y <strong>guardarla</strong> en disco.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>10 redes diseñadas <strong>por pares</strong> (cada par difiere en un solo elemento): MLP de referencia, LeNet-5, 1 vs 2 conv, max vs avg pooling, stride vs pooling, Dropout, BatchNorm, GAP y bloques tipo VGG.</li>
+          <li>Validación estratificada de 6 000 (600 por dígito), Adam, lote 128, hasta 15 épocas con <strong>EarlyStopping(patience=3)</strong>.</li>
+          <li>Ganadora por validación: <strong><code>vgg-bn-dropout</code></strong> → <code>mejor_modelo_cnn_mnist.keras</code>.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="p3-datos">Preprocesado: la forma con canal</h3>
+<pre data-code="Celda 3 · validación por dígito y canal">
+validation_indices = rng.permutation(np.concatenate([
+    rng.permutation(np.flatnonzero(digits_train == digit))[:600] for digit in CLASSES
+]))
+
+def preprocess(images):
+    return (images.astype('float32') / 255.0)[..., np.newaxis]   # (n, 28, 28) → (n, 28, 28, 1)
+</pre>
+    <p class="code-note"><code>Conv2D</code> en Keras espera tensores <code>(alto, ancho, canales)</code> (<em>channels-last</em>). <code>[..., np.newaxis]</code> añade el canal de gris. La red conserva así la <strong>estructura espacial</strong> en vez de aplanarla desde el principio. (En PyTorch, P4, es <em>channels-first</em>: <code>(n, 1, 28, 28)</code>.)</p>
+
+    <h3 id="p3-arqs">Las 10 arquitecturas</h3>
+<pre data-code="Celda 5 · bloques reutilizables">
+def conv(filters, kernel_size=3, *, batch_norm=False, **kwargs):
+    if batch_norm:   # Conv sin sesgo → BN → ReLU  (orden recomendado en las diapositivas)
+        return [layers.Conv2D(filters, kernel_size, use_bias=False, **kwargs),
+                layers.BatchNormalization(), layers.Activation('relu')]
+    return [layers.Conv2D(filters, kernel_size, activation='relu', **kwargs)]
+
+ARCHITECTURES = {
+    'mlp-referencia': lambda: [layers.Flatten(), *dense(128)],
+    'lenet5': lambda: [
+        layers.Conv2D(6, 5, padding='same', activation='tanh'), layers.AveragePooling2D(2),
+        layers.Conv2D(16, 5, activation='tanh'), layers.AveragePooling2D(2),
+        layers.Flatten(), layers.Dense(120, activation='tanh'), layers.Dense(84, activation='tanh')],
+    'cnn-2conv-maxpool': lambda: [
+        *conv(32), layers.MaxPooling2D(2), *conv(64), layers.MaxPooling2D(2),
+        layers.Flatten(), *dense(128)],
+    'cnn-2conv-stride2': lambda: [*conv(32, strides=2), *conv(64, strides=2),
+                                  layers.Flatten(), *dense(128)],
+    'cnn-bn-gap': lambda: [
+        *conv(32, padding='same', batch_norm=True), layers.MaxPooling2D(2),
+        *conv(64, padding='same', batch_norm=True), layers.MaxPooling2D(2),
+        *conv(128, padding='same', batch_norm=True), layers.GlobalAveragePooling2D()],
+    'vgg-bn-dropout': lambda: [
+        *conv(32, padding='same', batch_norm=True), *conv(32, padding='same', batch_norm=True),
+        layers.MaxPooling2D(2), layers.Dropout(0.25),
+        *conv(64, padding='same', batch_norm=True), *conv(64, padding='same', batch_norm=True),
+        layers.MaxPooling2D(2), layers.Dropout(0.25),
+        layers.Flatten(), *dense(128, dropout=0.5)],
+    # ... más cnn-1conv, cnn-2conv-avgpool, cnn-2conv-dropout, cnn-2conv-bn-dropout
+}
+
+def build_model(name):
+    model = tf.keras.Sequential(
+        [layers.Input(shape=(28, 28, 1)), *ARCHITECTURES[name](), layers.Dense(10, activation='softmax')])
+    model.compile(optimizer=tf.keras.optimizers.Adam(),
+                  loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    return model
+</pre>
+    <p class="code-note">Usar funciones (<code>lambda</code>) que devuelven listas de capas permite crear capas <strong>nuevas</strong> cada vez que se construye un modelo; el operador <code>*</code> «desempaqueta» las listas dentro del <code>Sequential</code>.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Red</th><th class="num">Parámetros</th><th>Forma antes de la densa</th><th>Cálculo</th></tr></thead>
+      <tbody>
+        <tr><td>mlp-referencia</td><td class="num">101 770</td><td>784</td><td>28·28</td></tr>
+        <tr><td>lenet5</td><td class="num">61 706</td><td>400</td><td>28 (same) → 14 → 10 → 5; 5·5·16</td></tr>
+        <tr><td>cnn-1conv</td><td class="num">693 962</td><td>5 408</td><td>28 → 26 → 13; 13·13·32</td></tr>
+        <tr><td>cnn-2conv-maxpool</td><td class="num">225 034</td><td>1 600</td><td>28 → 26 → 13 → 11 → 5; 5·5·64</td></tr>
+        <tr><td>cnn-2conv-stride2</td><td class="num">315 146</td><td>2 304</td><td>⌊25/2⌋+1 = 13 → ⌊10/2⌋+1 = 6; 6·6·64</td></tr>
+        <tr><td>cnn-2conv-bn-dropout</td><td class="num">225 322</td><td>1 600</td><td>+288 vs maxpool: −96 sesgos, +384 de BN (4 por canal)</td></tr>
+        <tr><td>cnn-bn-gap</td><td class="num">94 634</td><td>128</td><td>GAP: un número por canal</td></tr>
+        <tr><td>vgg-bn-dropout</td><td class="num">468 394</td><td>3 136</td><td>same: 28 → 14 → 7; 7·7·64</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Paradoja aparente: más convoluciones, menos parámetros</div><p><code>cnn-1conv</code> tiene 694 k parámetros y <code>cnn-2conv-maxpool</code> solo 225 k. La segunda conv + pool reduce el mapa de 13·13·32 = 5 408 a 5·5·64 = 1 600 valores, y la capa <strong>Dense</strong> posterior, que concentra casi todos los parámetros, se hace 3,4 veces más pequeña.</p></div>
+
+    <h3 id="p3-entreno">Entrenamiento y selección</h3>
+<pre data-code="Celda 8 · bucle (extracto)">
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss', patience=PATIENCE, restore_best_weights=True)      # PATIENCE = 3
+history = model.fit(x_fit, y_fit, validation_data=(x_val, y_val),
+                    epochs=MAX_EPOCHS, batch_size=BATCH_SIZE,              # 15 y 128
+                    callbacks=[early_stopping], shuffle=True, verbose=0)
+
+train_accuracy, train_errors, train_matrix, _ = evaluate_predictions(model, x_fit, y_fit)  # sin Dropout
+val_accuracy,   val_errors,   val_matrix,   _ = evaluate_predictions(model, x_val, y_val)
+test_results[name] = evaluate_predictions(model, x_test, y_test)          # se guarda APARTE
+
+score = (val_accuracy, -val_loss, -elapsed)       # se elige SOLO con validación
+if score &gt; best_score:
+    model.save(model_path)
+</pre>
+    <p class="code-note">El test se calcula en el bucle para no reentrenar, pero <strong>no interviene en la selección</strong>. Las métricas de train se recalculan con <code>predict</code> (Dropout apagado, BN con estadísticas finales) para que sean comparables.</p>
+
+    <h3 id="p3-resultados">Resultados</h3>
+    <div class="bars" role="img" aria-label="Errores de validación por arquitectura en la práctica 3">
+      <h5>Errores de validación (de 6 000) · menos es mejor</h5>
+      <p class="sub">Escala desde 0. Dorado = elegida; gris = referencia sin convoluciones.</p>
+      <div class="bar-row win" title="vgg-bn-dropout: 62 · test 82"><span class="lbl">vgg-bn-dropout</span><div class="track"><div class="fill" style="width:44.6%"></div></div><span class="val">62</span></div>
+      <div class="bar-row" title="cnn-2conv-bn-dropout: 68 · test 78"><span class="lbl">cnn-2conv-bn-dropout</span><div class="track"><div class="fill" style="width:48.9%"></div></div><span class="val">68</span></div>
+      <div class="bar-row" title="cnn-2conv-dropout: 70 · test 81"><span class="lbl">cnn-2conv-dropout</span><div class="track"><div class="fill" style="width:50.4%"></div></div><span class="val">70</span></div>
+      <div class="bar-row" title="cnn-2conv-maxpool: 72 · test 117"><span class="lbl">cnn-2conv-maxpool</span><div class="track"><div class="fill" style="width:51.8%"></div></div><span class="val">72</span></div>
+      <div class="bar-row" title="cnn-2conv-avgpool: 83 · test 116"><span class="lbl">cnn-2conv-avgpool</span><div class="track"><div class="fill" style="width:59.7%"></div></div><span class="val">83</span></div>
+      <div class="bar-row" title="cnn-2conv-stride2: 99 · test 138"><span class="lbl">cnn-2conv-stride2</span><div class="track"><div class="fill" style="width:71.2%"></div></div><span class="val">99</span></div>
+      <div class="bar-row" title="cnn-1conv: 106 · test 151"><span class="lbl">cnn-1conv</span><div class="track"><div class="fill" style="width:76.3%"></div></div><span class="val">106</span></div>
+      <div class="bar-row" title="cnn-bn-gap: 124 · test 188"><span class="lbl">cnn-bn-gap</span><div class="track"><div class="fill" style="width:89.2%"></div></div><span class="val">124</span></div>
+      <div class="bar-row" title="lenet5: 125 · test 159"><span class="lbl">lenet5</span><div class="track"><div class="fill" style="width:89.9%"></div></div><span class="val">125</span></div>
+      <div class="bar-row ref" title="mlp-referencia: 139 · test 229"><span class="lbl">mlp-referencia</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">139</span></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Comparación</th><th>Resultado (errores val)</th><th>Lectura</th></tr></thead>
+      <tbody>
+        <tr><td>MLP → cnn-1conv</td><td>139 → 106</td><td>La convolución ayuda; no es por parámetros: <strong>LeNet, con 40 % menos parámetros que el MLP</strong>, también le gana. Sesgo inductivo adecuado para imágenes.</td></tr>
+        <tr><td>1 conv → 2 conv</td><td>106 → 72</td><td>Profundidad: combina trazos en partes; amplía el campo receptivo; −68 % de parámetros.</td></tr>
+        <tr><td>Max → Average pooling</td><td>72 → 83</td><td>Max conserva la respuesta más fuerte; la media la diluye con el fondo negro. Ventaja pequeña.</td></tr>
+        <tr><td>Pooling → stride 2</td><td>72 → 99</td><td>La más rápida (1,8 s/época) pero pierde detalle espacial.</td></tr>
+        <tr><td>+ Dropout</td><td>72 → 70</td><td>Menor val_loss de todas y en test 117 → 81: entrena más épocas sin sobreajustar.</td></tr>
+        <tr><td>+ BatchNorm</td><td>70 → 68</td><td>Ligera mejora (mejor en test: 78); +50 % tiempo/época; aún no había convergido.</td></tr>
+        <tr><td>Flatten+Dense → GAP</td><td>68 → 124</td><td>Pierde <strong>dónde</strong> está cada rasgo (un 4 y un 9 comparten trazos en sitios distintos). GAP funciona en redes muy profundas como GoogLeNet.</td></tr>
+        <tr><td>Bloques VGG (2 conv 3×3 por bloque)</td><td>68 → 62</td><td>La mejor y la de <strong>menor brecha</strong> (0,42 pp), pero ≈ 3× más lenta.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout exam"><div class="ct">★ Matices que hay que saber defender</div><ul>
+      <li>Las tres mejores están en <strong>empate técnico</strong>: en test, <code>cnn-2conv-bn-dropout</code> (78) y <code>cnn-2conv-dropout</code> (81) incluso superan a la ganadora (82). No se cambió la elección mirando el test. Correlación de Spearman val–test: 0,94.</li>
+      <li><strong>Coste/beneficio</strong>: <code>cnn-2conv-dropout</code> da casi la misma exactitud con la mitad de parámetros y 1/5 del tiempo.</li>
+      <li>Lo común a las mejores: ≥ 2 niveles conv + ReLU + MaxPooling + regularización (Dropout/BN).</li></ul></div>
+    <div class="summary-box">
+      <h4>Resumen de la Práctica 3</h4>
+      <div class="kpis">
+        <div class="kpi"><b>10</b><span>arquitecturas por pares</span></div>
+        <div class="kpi"><b>vgg-bn-dropout</b><span>468 394 parámetros</span></div>
+        <div class="kpi"><b>98,97 %</b><span>validación (62 err.)</span></div>
+        <div class="kpi"><b>99,18 %</b><span>test (82 err.)</span></div>
+      </div>
+      <ul>
+        <li>Ganadora: 2 bloques [Conv-BN-ReLU ×2 (same) → MaxPool → Dropout 0,25] con 32 y 64 filtros → Flatten → Dense 128 → Dropout 0,5 → softmax.</li>
+        <li>Frente al MLP de la P1 (229 errores en test) la CNN reduce los errores de test un <strong>64 %</strong>.</li>
+        <li>Confusión más frecuente en test: 4 → 9.</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas de la Práctica 3.</p><a class="btn btn-solid" href="../test.html#practica=P3">Test P3 →</a></div>
+  </section>
+
+  <!-- ============================================================ PRÁCTICA 4 -->
+  <section id="p4">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Práctica 4 · Transfer learning">Práctica 4 · Transfer learning con redes preentrenadas</h2><span>PyTorch + torchvision · GPU (MPS)</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Crear un modelo con <strong>transfer learning</strong> a partir de modelos preentrenados vistos en clase para clasificar MNIST.</li>
+          <li>Comparar varias propuestas gráfica y numéricamente.</li>
+          <li>Elegir la mejor y guardarla. (TF: <code>tf.keras.applications</code>; PyTorch: <code>torchvision.models</code>.)</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li><strong>26 propuestas</strong>: AlexNet, VGG16, VGG19, GoogLeNet, ResNet50, DenseNet121 con pesos <code>IMAGENET1K_V1</code>.</li>
+          <li>Fase A: <strong>base congelada</strong> + cabeza lineal o MLP. Fase B: <strong>ajuste fino parcial/total</strong> con Adam 10⁻⁴.</li>
+          <li>Resoluciones 32 y 64 px, un <strong>control con pesos aleatorios</strong> y la CNN de la P3 como referencia.</li>
+          <li>Ganador: <strong><code>densenet121-64-ft-total</code></strong> exportado con TorchScript.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="p4-pre">Adaptar la entrada dentro del modelo</h3>
+<pre data-code="Celda 5 · módulo Preprocess">
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD  = [0.229, 0.224, 0.225]
+
+class Preprocess(nn.Module):
+    def __init__(self, res):
+        super().__init__()
+        self.res = res
+        self.register_buffer('mean', torch.tensor(IMAGENET_MEAN).view(1, 3, 1, 1))
+        self.register_buffer('std',  torch.tensor(IMAGENET_STD).view(1, 3, 1, 1))
+
+    def forward(self, x):                                    # x: (n, 1, 28, 28) en [0, 1]
+        x = F.interpolate(x, size=(self.res, self.res), mode='bilinear', align_corners=False)
+        x = x.expand(-1, 3, -1, -1)                          # gris → 3 canales «RGB»
+        return (x - self.mean) / self.std                    # normalización ImageNet
+</pre>
+    <p class="code-note">Al meter la adaptación <strong>dentro</strong> del modelo, el modelo exportado acepta la misma entrada <code>(n, 1, 28, 28)</code> de siempre: quien lo use no tiene que repetir el preprocesado a mano (fallo de otras entregas). <code>register_buffer</code> guarda tensores que viajan con el modelo (<code>.to(device)</code>, <code>state_dict</code>) pero <strong>no son parámetros entrenables</strong>.</p>
+
+    <h3 id="p4-base">Construir la base y congelarla</h3>
+<pre data-code="Celda 5 · build_backbone / build_extractor / build_head">
+def build_backbone(name, weights):
+    if name in ('alexnet', 'vgg16', 'vgg19'):
+        net = getattr(models, name)(weights=weights)
+        return nn.Sequential(net.features, nn.AdaptiveAvgPool2d(1), nn.Flatten(1))   # 256/512 rasgos
+    if name == 'resnet50':
+        net = models.resnet50(weights=weights)
+        net.fc = nn.Identity()               # quitar el clasificador de 1 000 clases → 2 048 rasgos
+        return net
+    if name == 'densenet121':
+        net = models.densenet121(weights=weights)
+        net.classifier = nn.Identity()       # → 1 024 rasgos
+        return net
+
+def build_extractor(backbone_name, res, weights='imagenet'):
+    backbone = build_backbone(backbone_name, weights)
+    for parameter in backbone.parameters():
+        parameter.requires_grad_(False)      # CONGELAR
+    return Extractor(res, backbone)
+
+def build_head(feature_dim, head):
+    if head == 'lineal':
+        return nn.Linear(feature_dim, 10)
+    return nn.Sequential(nn.Linear(feature_dim, 256), nn.ReLU(), nn.Dropout(0.5), nn.Linear(256, 10))
+</pre>
+    <p class="code-note"><code>nn.Identity()</code> sustituye la última capa por «no hacer nada», de modo que la red devuelve el vector de características tras el <em>global average pooling</em>. La cabeza no lleva softmax: <code>nn.CrossEntropyLoss</code> recibe <strong>logits</strong>.</p>
+
+    <h3 id="p4-ft">Descongelar para el ajuste fino</h3>
+<pre data-code="Celda 5 · unfreeze_backbone">
+def unfreeze_backbone(extractor, backbone_name, corte):
+    backbone = extractor.backbone
+    for p in backbone.parameters():
+        p.requires_grad_(False)
+    if corte is None:                                         # ajuste TOTAL
+        for p in backbone.parameters():
+            p.requires_grad_(True)
+    elif backbone_name == 'vgg16':
+        for p in backbone[0][24:].parameters():               # bloque 5 de VGG16
+            p.requires_grad_(True)
+    elif backbone_name == 'resnet50':
+        for p in backbone.layer4.parameters():
+            p.requires_grad_(True)
+    elif backbone_name == 'densenet121':
+        for p in backbone.features.denseblock4.parameters():
+            p.requires_grad_(True)
+    for module in backbone.modules():                         # BatchNorm SIEMPRE congeladas
+        if isinstance(module, nn.modules.batchnorm._BatchNorm):
+            for p in module.parameters():
+                p.requires_grad_(False)
+            module.eval()
+</pre>
+
+    <h3 id="p4-fit">El bucle de entrenamiento en PyTorch</h3>
+<pre data-code="Celda 5 · fit con parada temprana manual">
+def fit(model, x_tr, y_tr, x_va, y_va, *, epochs, patience, lr):
+    optimizer = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], lr=lr)
+    criterion = nn.CrossEntropyLoss()
+    loader = DataLoader(TensorDataset(x_tr, y_tr), batch_size=BATCH_SIZE, shuffle=True,
+                        generator=torch.Generator().manual_seed(SEED))
+    for epoch in range(epochs):
+        model.train()
+        freeze_bn_eval(model)                 # model.train() reactiva BN → volver a ponerlas en eval
+        for x_batch, y_batch in loader:
+            optimizer.zero_grad()             # 1. borrar gradientes acumulados
+            logits = model(x_batch.to(device))
+            loss = criterion(logits, y_batch.to(device))
+            loss.backward()                   # 2. retropropagación
+            optimizer.step()                  # 3. actualizar
+        val_loss, val_accuracy = loss_and_accuracy(model, x_va, y_va, device)
+        if val_loss &lt; best_loss:
+            best_loss, waiting = val_loss, 0
+            best_state = copy.deepcopy({k: v.cpu() for k, v in model.state_dict().items()})
+        else:
+            waiting += 1
+            if waiting &gt;= patience:
+                break
+    model.load_state_dict(best_state)         # = restore_best_weights
+</pre>
+    <p class="code-note">Es el equivalente manual de <code>model.fit</code> + <code>EarlyStopping</code> de Keras. <code>copy.deepcopy</code> es imprescindible: sin él, <code>best_state</code> apuntaría a los tensores que se siguen modificando. Fase A: lr 10⁻³, 30 épocas, patience 3 sobre los vectores de características ya calculados. Fase B: lr 10⁻⁴, 5 épocas, patience 2, partiendo de la cabeza MLP de la fase A.</p>
+
+    <h3 id="p4-resultados">Resultados</h3>
+    <div class="bars" role="img" aria-label="Errores de validación por configuración en la práctica 4">
+      <h5>Errores de validación (de 6 000) · menos es mejor</h5>
+      <p class="sub">Escala desde 0. Dorado = elegida; gris = CNN de la P3 (referencia, no seleccionable). <code>resnet50-32-aleatoria-mlp</code> (5 400) queda fuera de escala.</p>
+      <div class="bar-row win" title="densenet121-64-ft-total: 46 · test 76"><span class="lbl">densenet121-64-ft-total</span><div class="track"><div class="fill" style="width:7.7%"></div></div><span class="val">46</span></div>
+      <div class="bar-row" title="densenet121-32-ft-total: 53 · test 65"><span class="lbl">densenet121-32-ft-total</span><div class="track"><div class="fill" style="width:8.9%"></div></div><span class="val">53</span></div>
+      <div class="bar-row" title="vgg16-32-ft-total: 61 · test 77"><span class="lbl">vgg16-32-ft-total</span><div class="track"><div class="fill" style="width:10.2%"></div></div><span class="val">61</span></div>
+      <div class="bar-row ref" title="cnn-p3-desde-cero: 62 · test 82"><span class="lbl">cnn-p3-desde-cero</span><div class="track"><div class="fill" style="width:10.4%"></div></div><span class="val">62</span></div>
+      <div class="bar-row" title="vgg16-32-ft-parcial: 79"><span class="lbl">vgg16-32-ft-parcial</span><div class="track"><div class="fill" style="width:13.2%"></div></div><span class="val">79</span></div>
+      <div class="bar-row" title="resnet50-32-ft-total: 87"><span class="lbl">resnet50-32-ft-total</span><div class="track"><div class="fill" style="width:14.6%"></div></div><span class="val">87</span></div>
+      <div class="bar-row" title="resnet50-32-ft-parcial: 97"><span class="lbl">resnet50-32-ft-parcial</span><div class="track"><div class="fill" style="width:16.2%"></div></div><span class="val">97</span></div>
+      <div class="bar-row" title="densenet121-64-congelada-lineal: 167"><span class="lbl">densenet121-64-cong-lineal</span><div class="track"><div class="fill" style="width:28.0%"></div></div><span class="val">167</span></div>
+      <div class="bar-row" title="densenet121-32-ft-parcial: 189"><span class="lbl">densenet121-32-ft-parcial</span><div class="track"><div class="fill" style="width:31.7%"></div></div><span class="val">189</span></div>
+      <div class="bar-row" title="resnet50-32-congelada-lineal: 190"><span class="lbl">resnet50-32-cong-lineal</span><div class="track"><div class="fill" style="width:31.8%"></div></div><span class="val">190</span></div>
+      <div class="bar-row" title="resnet50-32-congelada-mlp: 212"><span class="lbl">resnet50-32-cong-mlp</span><div class="track"><div class="fill" style="width:35.5%"></div></div><span class="val">212</span></div>
+      <div class="bar-row" title="densenet121-32-congelada-mlp: 224"><span class="lbl">densenet121-32-cong-mlp</span><div class="track"><div class="fill" style="width:37.5%"></div></div><span class="val">224</span></div>
+      <div class="bar-row" title="alexnet-64-congelada-mlp: 275"><span class="lbl">alexnet-64-cong-mlp</span><div class="track"><div class="fill" style="width:46.1%"></div></div><span class="val">275</span></div>
+      <div class="bar-row" title="vgg16-32-congelada-mlp: 345"><span class="lbl">vgg16-32-cong-mlp</span><div class="track"><div class="fill" style="width:57.8%"></div></div><span class="val">345</span></div>
+      <div class="bar-row" title="googlenet-32-congelada-mlp: 399"><span class="lbl">googlenet-32-cong-mlp</span><div class="track"><div class="fill" style="width:66.8%"></div></div><span class="val">399</span></div>
+      <div class="bar-row" title="vgg19-32-congelada-lineal: 437"><span class="lbl">vgg19-32-cong-lineal</span><div class="track"><div class="fill" style="width:73.2%"></div></div><span class="val">437</span></div>
+      <div class="bar-row" title="resnet50-32-aleatoria-lineal: 597"><span class="lbl">resnet50-32-aleatoria-lineal</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">597</span></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Base (32 px)</th><th class="num">Congelada (MLP)</th><th class="num">FT parcial</th><th class="num">FT total</th></tr></thead>
+      <tbody>
+        <tr><td>VGG16</td><td class="num">345</td><td class="num">79 (bloque 5)</td><td class="num"><strong>61</strong></td></tr>
+        <tr><td>ResNet50</td><td class="num">212</td><td class="num">97 (layer4)</td><td class="num">87</td></tr>
+        <tr><td>DenseNet121</td><td class="num">224</td><td class="num">189 (denseblock4)</td><td class="num"><strong>53</strong></td></tr>
+      </tbody>
+    </table></div>
+    <h3 id="p4-lecciones">Lecciones de la comparación</h3>
+    <ol>
+      <li><strong>ImageNet frente a pesos aleatorios</strong> (ResNet50, congelada): 190 vs 597 errores con cabeza lineal; con MLP la base aleatoria <strong>no aprende nada</strong> (predice siempre «1»: 600/6 000 = 10 %). Se transfieren <strong>filtros útiles</strong>, no solo una arquitectura.</li>
+      <li><strong>Base congelada</strong>: ResNet50 y DenseNet121 dan las mejores características (combinan rasgos de varios niveles); VGG19 no mejora a VGG16.</li>
+      <li><strong>Resolución</strong>: 64 px ayuda mucho a la base congelada de DenseNet (271 → 167), poco con ajuste total (53 → 46 en val, pero 65 → 76 en test) y cuesta 2,4× más.</li>
+      <li><strong>Cabeza lineal vs MLP</strong>: la MLP ayuda si las características son pobres (VGG, AlexNet); con ResNet50 empeora (ya son casi linealmente separables).</li>
+      <li><strong>Congelada → parcial → total</strong> es el factor más importante (−59 % a −82 % de errores): las capas altas de ImageNet están especializadas en fotos, no en trazos grises.</li>
+      <li><strong>ResNet50 es la peor en ajuste fino</strong> pese a ser la mayor (24 M parámetros): su val_loss mínima es en la época 1; probablemente necesitaría lr 10⁻⁵.</li>
+      <li><strong>Frente a la CNN de la P3</strong>: solo los 3 mejores ajustes totales la igualan o superan; la ganadora reduce errores de val un 26 % (46 vs 62) y de test un 7 % (76 vs 82), con <strong>15× más parámetros</strong> y GPU.</li>
+    </ol>
+    <h3 id="p4-export">Exportación</h3>
+<pre data-code="Celda 15 · exportar el modelo completo">
+try:
+    exported_program = torch.export.export(best_model.cpu().eval(), (example_batch,),
+                                           dynamic_shapes=({0: torch.export.Dim('batch', min=1)},))
+    torch.export.save(exported_program, 'mejor_modelo_transfer_mnist.pt2')
+except Exception:
+    torch.jit.trace(best_model.cpu().eval(), example_batch).save('mejor_modelo_transfer_mnist.pt')
+</pre>
+    <p class="code-note"><code>torch.export</code> falló con este modelo, así que se usó TorchScript (<code>torch.jit.trace</code>). Ambos se cargan <strong>sin el código de las clases</strong>, a diferencia de guardar solo el <code>state_dict</code>. Se recarga, se comprueba que reproduce los 46 errores de validación y solo entonces se evalúa en test.</p>
+    <div class="summary-box">
+      <h4>Resumen de la Práctica 4</h4>
+      <div class="kpis">
+        <div class="kpi"><b>26</b><span>propuestas</span></div>
+        <div class="kpi"><b>DenseNet121</b><span>64 px · ajuste fino total</span></div>
+        <div class="kpi"><b>99,23 %</b><span>validación (46 err.)</span></div>
+        <div class="kpi"><b>99,24 %</b><span>test (76 err.)</span></div>
+      </div>
+      <ul>
+        <li>Entrada (1,28,28) → resize bilineal 64 → 3 canales → normalización ImageNet → DenseNet121 (BN congeladas) → GAP (1 024) → Linear 256 → ReLU → Dropout 0,5 → Linear 10.</li>
+        <li>Dos fases: cabeza sobre base congelada (Adam 10⁻³) → ajuste fino total (Adam 10⁻⁴).</li>
+        <li>Empate técnico con DenseNet-32-ft-total, VGG16-ft-total y la CNN de la P3; MNIST está lejos de ImageNet y es fácil.</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas de la Práctica 4.</p><a class="btn btn-solid" href="../test.html#practica=P4">Test P4 →</a></div>
+  </section>
+
+  <section id="t2-chuleta">
+    <h2 class="sec" data-short="Chuleta final"><span class="n">★</span> Chuleta del Tema 2</h2>
+    <div class="tbl-wrap"><table class="tbl"><tbody>
+      <tr><th>Tamaño salida</th><td>$\lfloor (n-k+2p)/s\rfloor+1$ (conv y pooling)</td></tr>
+      <tr><th>Parámetros conv</th><td>$(k\cdot k\cdot C_{in}+1)\cdot C_{out}$ · pooling: 0 · BN: 4 por canal (2 entrenables)</td></tr>
+      <tr><th>Invarianza</th><td>localidad + pesos compartidos + submuestreo</td></tr>
+      <tr><th>Padding</th><td>same = conserva tamaño (s = 1) · valid = sin relleno</td></tr>
+      <tr><th>BN</th><td>conv(sin sesgo) → BN → activación</td></tr>
+      <tr><th>Dropout</th><td>tras pooling; menor en conv (0,25) que en densas (0,5)</td></tr>
+      <tr><th>Arquitecturas</th><td>LeNet (tanh, avg pool) · AlexNet (ReLU, dropout, LRN) · VGG (3×3) · GoogLeNet (Inception, 1×1, GAP, aux) · ResNet (suma) · DenseNet (concatena)</td></tr>
+      <tr><th>Transfer</th><td>congelar + cabeza (barato) · ajuste fino con lr baja · adaptar entrada (resize, 3 canales, normalización ImageNet) · BN en eval</td></tr>
+    </tbody></table></div>
+    <div class="mini-quiz"><p><strong>Simulacro del Tema 2</strong>.</p><a class="btn btn-solid" href="../test.html#tema=T2&amp;modo=examen">Simulacro T2 →</a></div>
+  </section>
+
+  </main>
+</div>
+<footer class="footer">
+  <div class="wrap"><span><a href="tema-1.html">← Tema 1 · RNA</a></span><span><a href="tema-3.html">Siguiente: Tema 3 · GAN →</a></span></div>
+</footer>
+</body>
+</html>
