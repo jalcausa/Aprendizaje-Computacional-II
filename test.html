@@ -18,6 +18,7 @@
 <script defer src="assets/js/preguntas-t1.js"></script>
 <script defer src="assets/js/preguntas-t2.js"></script>
 <script defer src="assets/js/preguntas-t3.js"></script>
+<script defer src="assets/js/preguntas-t4.js"></script>
 <script defer src="assets/js/test.js"></script>
 </head>
 <body>
@@ -26,9 +27,10 @@
   <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
   <nav class="topnav" aria-label="Navegación principal">
     <a href="index.html">Inicio</a>
-    <a href="apuntes/tema-1.html">Tema 1 · RNA</a>
-    <a href="apuntes/tema-2.html">Tema 2 · CNN</a>
-    <a href="apuntes/tema-3.html">Tema 3 · GAN</a>
+    <a href="apuntes/tema-1.html">T1 · RNA</a>
+    <a href="apuntes/tema-2.html">T2 · CNN</a>
+    <a href="apuntes/tema-3.html">T3 · GAN</a>
+    <a href="apuntes/tema-4.html">T4 · Secuencias</a>
     <a href="test.html" aria-current="page">Test</a>
   </nav>
   <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
@@ -64,6 +66,7 @@
     <div class="panel">
       <h3>2 · Qué preguntar</h3>
       <div class="filters">
+        <div class="filter-group"><label class="gl">Parcial</label><div class="chips" id="f-parcial"></div></div>
         <div class="filter-group"><label class="gl">Tema</label><div class="chips" id="f-tema"></div></div>
         <div class="filter-group"><label class="gl">Bloque</label><div class="chips" id="f-practica"></div></div>
         <div class="filter-group"><label class="gl">Tipo de pregunta</label><div class="chips" id="f-tipo"></div></div>

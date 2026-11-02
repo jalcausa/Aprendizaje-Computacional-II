@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AC·II · Apuntes y test de Aprendizaje Computacional II</title>
-<meta name="description" content="Resúmenes didácticos, prácticas explicadas celda a celda y test interactivo de Aprendizaje Computacional II: redes neuronales, CNN, transfer learning y GAN.">
+<title>AC·II · Apuntes y test</title>
+<meta name="description" content="Resúmenes didácticos, prácticas explicadas y test interactivo de Aprendizaje Computacional II. Parcial 2: modelado de secuencias para NLP y series temporales. Parcial 1: redes neuronales, CNN, transfer learning y GAN.">
 <script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +17,7 @@
 <script defer src="assets/js/preguntas-t1.js"></script>
 <script defer src="assets/js/preguntas-t2.js"></script>
 <script defer src="assets/js/preguntas-t3.js"></script>
+<script defer src="assets/js/preguntas-t4.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -24,9 +25,10 @@
   <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
   <nav class="topnav" aria-label="Navegación principal">
     <a href="index.html" aria-current="page">Inicio</a>
-    <a href="apuntes/tema-1.html">Tema 1 · RNA</a>
-    <a href="apuntes/tema-2.html">Tema 2 · CNN</a>
-    <a href="apuntes/tema-3.html">Tema 3 · GAN</a>
+    <a href="apuntes/tema-1.html">T1 · RNA</a>
+    <a href="apuntes/tema-2.html">T2 · CNN</a>
+    <a href="apuntes/tema-3.html">T3 · GAN</a>
+    <a href="apuntes/tema-4.html">T4 · Secuencias</a>
     <a href="test.html">Test</a>
   </nav>
   <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
@@ -35,16 +37,16 @@
 <section class="hero">
   <div class="hero-inner">
     <div>
-      <span class="eyebrow"><span class="dot"></span> Aprendizaje Computacional II · Parcial</span>
-      <h1>De la neurona a la GAN,<br><em>entendiendo cada línea.</em></h1>
-      <p class="lead">Resúmenes de teoría con diagramas, las seis prácticas explicadas celda a celda con el código que importa y un banco de preguntas tipo test con corrección inmediata, simulacros y ejercicios de «encuentra el fallo».</p>
+      <span class="eyebrow"><span class="dot"></span> Aprendizaje Computacional II · Parcial 2 en curso</span>
+      <h1>Del modelo autorregresivo al Transformer,<br><em>entendiendo cada línea.</em></h1>
+      <p class="lead">El Parcial 2 trata el modelado de secuencias para NLP y series temporales. Resúmenes de teoría con diagramas, los labs resueltos y explicados con el código que importa, y un banco de preguntas tipo test con corrección inmediata y simulacros. El material del Parcial 1 (aprobado) sigue disponible abajo.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="test.html">Empezar el test ↗</a>
-        <a class="btn btn-ghost" href="#mapa">Qué estudiar</a>
+        <a class="btn btn-primary" href="apuntes/tema-4.html">Abrir el Tema 4 ↗</a>
+        <a class="btn btn-ghost" href="test.html#parcial=2">Test del Parcial 2</a>
       </div>
       <div class="hero-stats">
-        <div><strong>3</strong><span>temas</span></div>
-        <div><strong>6</strong><span>prácticas explicadas</span></div>
+        <div><strong>4</strong><span>temas</span></div>
+        <div><strong>7</strong><span>prácticas explicadas</span></div>
         <div><strong id="n-preg">—</strong><span>preguntas tipo test</span></div>
         <div><strong id="n-code">—</strong><span>de código y cálculo</span></div>
       </div>
@@ -78,12 +80,67 @@
 </section>
 
 <main>
-  <section class="section" id="temas">
+  <section class="section" id="parcial-2">
     <div class="wrap">
       <div class="section-head">
-        <div><span class="overline">Los apuntes</span><h2>Tres temas, seis prácticas</h2></div>
-        <p>Cada tema empieza con la teoría (con diagramas y fórmulas) y sigue con sus prácticas: qué se pedía, cómo se resolvió, el código clave sección a sección y un resumen final.</p>
+        <div><span class="overline">Parcial 2 · en curso</span><h2>Modelos de secuencias</h2></div>
+        <p>Texto y series temporales: datos ordenados en los que cada elemento depende de los anteriores. Del modelo autorregresivo con ventana a las RNN, LSTM, Seq2Seq y Transformers. Test de la segunda parte: <strong>16/12/2026</strong>.</p>
       </div>
+      <div class="cards">
+        <article class="card">
+          <div class="card-top"><span class="tag">Tema 4</span><span class="card-num">04</span></div>
+          <h3>Introducción al modelado de secuencias</h3>
+          <p>NLP y series temporales, evolución RNN → Transformer, datos secuenciales, modelos autorregresivos, ventana τ, condición de Markov, predicción a k pasos, MAE/MSE y modelos latentes.</p>
+          <ul><li><strong>L0</strong> · AR lineal sobre un seno con ruido: τ óptimo y error frente al horizonte</li><li><strong>L0</strong> · Temperaturas diarias e IBM frente a referencias ingenuas</li></ul>
+          <div class="card-foot"><a class="chip-link" href="apuntes/tema-4.html">Abrir apuntes →</a><a class="chip-link" href="test.html#tema=T4">Test T4</a></div>
+        </article>
+        <article class="map-card t4">
+          <span class="tag ok">Tema 4</span>
+          <h3>Qué tienes que dominar</h3>
+          <ul>
+            <li>Ventana deslizante: características $[x_{t-\tau},\dots,x_{t-1}]$, etiqueta $x_t$, $T-\tau$ ejemplos.</li>
+            <li>AR lineal: $\min\sum(Y_t-(c+\phi_1Y_{t-1}))^2$, predicción $c+\phi_1Y_t$, punto fijo $c/(1-\phi_1)$.</li>
+            <li>Condición de Markov de orden τ y la factorización de primer orden.</li>
+            <li>Un paso frente a k pasos: realimentar y acumulación de errores.</li>
+            <li>Partición temporal, MAE/MSE y comparar con la persistencia.</li>
+            <li>AR frente a AR latente ($h_t=g(h_{t-1},x_{t-1})$).</li>
+          </ul>
+          <h4>Basta con reconocer</h4>
+          <p style="color:var(--ink-2);font-size:.92rem;margin:0">Fechas de cada etapa (RNN, LSTM/GRU, Seq2Seq con atención, Transformer 2017) y las piezas de d2l.</p>
+        </article>
+      </div>
+      <h3 style="margin:2.2rem 0 .9rem;font-size:1.1rem">Labs del Parcial 2</h3>
+      <div class="timeline">
+        <a class="tl-item" href="apuntes/tema-4.html#l0"><span class="tag">L0</span><b>Modelo autorregresivo</b><span>Resuelto · τ, horizontes, datos reales</span></a>
+        <div class="tl-item soon"><span class="tag">L1</span><b>Trabajar con secuencias</b><span>Próximamente</span></div>
+        <div class="tl-item soon"><span class="tag">L2</span><b>RNN</b><span>Próximamente</span></div>
+        <div class="tl-item soon"><span class="tag">L3</span><b>LSTM</b><span>Próximamente</span></div>
+        <div class="tl-item soon"><span class="tag">L4</span><b>Embeddings / Seq2Seq</b><span>Próximamente</span></div>
+        <div class="tl-item soon"><span class="tag">L5</span><b>Transformers</b><span>Próximamente</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:1.5rem;flex-wrap:wrap;background:linear-gradient(120deg,var(--navy-900),var(--navy-700));border:0;color:#fff">
+        <div>
+          <span class="overline" style="color:var(--navy-300)">Cómo usar el test</span>
+          <h2 style="color:#fff;margin:.4rem 0 .5rem;font-size:1.5rem">Práctica guiada → repaso de fallos → simulacro</h2>
+          <p style="color:var(--navy-200);margin:0;max-width:44rem">Filtra por «Parcial 2» y responde por temas con corrección inmediata. Después usa «Repasar fallos» hasta vaciarlo. Por último, haz simulacros con penalización para medirte.</p>
+        </div>
+        <a class="btn btn-primary" href="test.html#parcial=2">Test del Parcial 2 ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="parcial-1" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="overline">Parcial 1 · aprobado</span><h2>Redes neuronales, CNN y GAN</h2></div>
+        <p>El material del primer parcial se conserva completo como consulta: teoría, las seis prácticas explicadas y sus preguntas (filtro «Parcial 1» en el test).</p>
+      </div>
+      <p class="archive-note"><span class="tag ok">✓ Superado</span> Tres temas, seis prácticas.</p>
       <div class="cards">
         <article class="card">
           <div class="card-top"><span class="tag">Tema 1</span><span class="card-num">01</span></div>
@@ -107,16 +164,18 @@
           <div class="card-foot"><a class="chip-link" href="apuntes/tema-3.html">Abrir apuntes →</a><a class="chip-link" href="test.html#tema=T3">Test T3</a></div>
         </article>
       </div>
-    </div>
-  </section>
-
-  <section class="section" id="mapa" style="background:var(--surface);border-block:1px solid var(--line)">
-    <div class="wrap">
-      <div class="section-head">
-        <div><span class="overline">El mapa de estudio</span><h2>Qué merece tu memoria y qué no</h2></div>
-        <p>El test pregunta sobre todo por <strong>conceptos</strong>, por <strong>elegir la opción adecuada</strong> (capa, pérdida, optimizador) y por <strong>cálculos cortos</strong>. Las cifras exactas de las prácticas importan menos que saber explicarlas.</p>
+      <h3 style="margin:2.2rem 0 .9rem;font-size:1.1rem">Prácticas del Parcial 1</h3>
+      <div class="timeline">
+        <a class="tl-item" href="apuntes/tema-1.html#p0"><span class="tag">P0</span><b>Perceptrón desde cero</b><span>NumPy, backprop y Adam a mano</span></a>
+        <a class="tl-item" href="apuntes/tema-1.html#p1"><span class="tag">P1</span><b>Hiperparámetros</b><span>3 optimizadores × épocas × lote</span></a>
+        <a class="tl-item" href="apuntes/tema-1.html#p2"><span class="tag">P2</span><b>Par / impar</b><span>Salida sigmoide, Dropout, validación</span></a>
+        <a class="tl-item" href="apuntes/tema-2.html#p3"><span class="tag">P3</span><b>CNN para MNIST</b><span>10 arquitecturas por pares</span></a>
+        <a class="tl-item" href="apuntes/tema-2.html#p4"><span class="tag">P4</span><b>Transfer learning</b><span>ImageNet → dígitos, ajuste fino</span></a>
+        <a class="tl-item" href="apuntes/tema-3.html#p5"><span class="tag gold">P5</span><b>GAN</b><span>Curvas de error, IS y FID</span></a>
       </div>
-      <div class="map-grid">
+      <details style="margin-top:2rem"><summary style="cursor:pointer;font:600 1.05rem var(--font-display)">Mapa de estudio del Parcial 1 (qué había que dominar)</summary>
+      <div style="margin-top:1rem">
+<div class="map-grid">
         <article class="map-card">
           <span class="tag">Tema 1</span>
           <h3>Fundamentos y entrenamiento</h3>
@@ -161,42 +220,13 @@
           <p style="color:var(--ink-2);font-size:.92rem;margin:0">Variantes (cGAN, DCGAN, CycleGAN, StyleGAN) y su idea en una frase.</p>
         </article>
       </div>
-    </div>
-  </section>
-
-  <section class="section" id="practicas">
-    <div class="wrap">
-      <div class="section-head">
-        <div><span class="overline">Las prácticas</span><h2>Ve directamente a la que necesites</h2></div>
-        <p>Cada práctica tiene su resumen (qué se pedía y cómo se hizo), el recorrido por el notebook con el código importante y su propio test.</p>
-      </div>
-      <div class="timeline">
-        <a class="tl-item" href="apuntes/tema-1.html#p0"><span class="tag">P0</span><b>Perceptrón desde cero</b><span>NumPy, backprop y Adam a mano</span></a>
-        <a class="tl-item" href="apuntes/tema-1.html#p1"><span class="tag">P1</span><b>Hiperparámetros</b><span>3 optimizadores × épocas × lote</span></a>
-        <a class="tl-item" href="apuntes/tema-1.html#p2"><span class="tag">P2</span><b>Par / impar</b><span>Salida sigmoide, Dropout, validación</span></a>
-        <a class="tl-item" href="apuntes/tema-2.html#p3"><span class="tag">P3</span><b>CNN para MNIST</b><span>10 arquitecturas por pares</span></a>
-        <a class="tl-item" href="apuntes/tema-2.html#p4"><span class="tag">P4</span><b>Transfer learning</b><span>ImageNet → dígitos, ajuste fino</span></a>
-        <a class="tl-item" href="apuntes/tema-3.html#p5"><span class="tag gold">P5</span><b>GAN</b><span>Curvas de error, IS y FID</span></a>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" style="padding-top:0">
-    <div class="wrap">
-      <div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:1.5rem;flex-wrap:wrap;background:linear-gradient(120deg,var(--navy-900),var(--navy-700));border:0;color:#fff">
-        <div>
-          <span class="overline" style="color:var(--navy-300)">Cómo usar el test</span>
-          <h2 style="color:#fff;margin:.4rem 0 .5rem;font-size:1.5rem">Práctica guiada → repaso de fallos → simulacro</h2>
-          <p style="color:var(--navy-200);margin:0;max-width:44rem">Primero responde por temas con corrección inmediata. Después usa «Repasar fallos» hasta vaciarlo. Por último, haz simulacros de 20–30 preguntas con penalización para medirte.</p>
-        </div>
-        <a class="btn btn-primary" href="test.html">Ir al test ↗</a>
-      </div>
+      </div></details>
     </div>
   </section>
 </main>
 
 <footer class="footer">
-  <div class="wrap"><span>AC·II · Apuntes de Aprendizaje Computacional II</span><span>Material de estudio basado en las diapositivas y prácticas de la asignatura</span></div>
+  <div class="wrap"><span>AC·II · Apuntes de Aprendizaje Computacional II · Parcial 1 y Parcial 2</span><span>Material de estudio basado en las diapositivas y prácticas de la asignatura</span></div>
 </footer>
 <script>
 document.addEventListener("DOMContentLoaded", function () {

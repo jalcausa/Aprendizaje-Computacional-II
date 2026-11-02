@@ -4,10 +4,15 @@
 
   const STORE_KEY = "acii-progress-v1";
   const LETTERS = ["A", "B", "C", "D", "E", "F"];
+  const PARCIALES = [
+    { v: "1", label: "Parcial 1 · T1–T3" },
+    { v: "2", label: "Parcial 2 · T4" }
+  ];
   const TEMAS = [
-    { v: "T1", label: "Tema 1 · RNA" },
-    { v: "T2", label: "Tema 2 · CNN" },
-    { v: "T3", label: "Tema 3 · GAN" }
+    { v: "T1", label: "Tema 1 · RNA", parcial: "1" },
+    { v: "T2", label: "Tema 2 · CNN", parcial: "1" },
+    { v: "T3", label: "Tema 3 · GAN", parcial: "1" },
+    { v: "T4", label: "Tema 4 · Secuencias", parcial: "2" }
   ];
   const BLOQUES = [
     { v: "teoria", label: "Teoría" },
@@ -16,7 +21,8 @@
     { v: "P2", label: "P2 · Par / impar" },
     { v: "P3", label: "P3 · CNN" },
     { v: "P4", label: "P4 · Transfer" },
-    { v: "P5", label: "P5 · GAN" }
+    { v: "P5", label: "P5 · GAN" },
+    { v: "L0", label: "L0 · Autorregresivo" }
   ];
   const TIPOS = [
     { v: "teoria", label: "Teoría" },
@@ -28,7 +34,7 @@
 
   let bank = [];
   let progress = {};
-  const filters = { tema: new Set(), practica: new Set(), tipo: new Set() };
+  const filters = { parcial: new Set(), tema: new Set(), practica: new Set(), tipo: new Set() };
   let mode = "practica";
   let session = null;
   let timerId = null;
@@ -54,6 +60,7 @@
 
   /* ------------------------------------------------------------ utilidades */
   function blockOf(q) { return q.p || "teoria"; }
+  function parcialOf(q) { return (TEMAS.find(function (t) { return t.v === q.t; }) || {}).parcial; }
   function isMulti(q) { return Array.isArray(q.a); }
   function correctSet(q) { return new Set(isMulti(q) ? q.a : [q.a]); }
   function shuffle(arr) {
@@ -76,7 +83,8 @@
 
   /* ------------------------------------------------------------ filtros */
   function matches(q) {
-    return (!filters.tema.size || filters.tema.has(q.t)) &&
+    return (!filters.parcial.size || filters.parcial.has(parcialOf(q))) &&
+      (!filters.tema.size || filters.tema.has(q.t)) &&
       (!filters.practica.size || filters.practica.has(blockOf(q))) &&
       (!filters.tipo.size || filters.tipo.has(q.k));
   }
@@ -112,7 +120,7 @@
   }
 
   function refreshChips() {
-    [["f-tema", "tema"], ["f-practica", "practica"], ["f-tipo", "tipo"]].forEach(function (pair) {
+    [["f-parcial", "parcial"], ["f-tema", "tema"], ["f-practica", "practica"], ["f-tipo", "tipo"]].forEach(function (pair) {
       const set = filters[pair[1]];
       $(pair[0]).querySelectorAll(".chip").forEach(function (chip) {
         const v = chip.dataset.value;
@@ -156,6 +164,7 @@
 
   function readHash() {
     const h = new URLSearchParams(location.hash.replace(/^#/, ""));
+    if (h.get("parcial")) h.get("parcial").split(",").forEach(function (v) { filters.parcial.add(v); });
     if (h.get("tema")) h.get("tema").split(",").forEach(function (v) { filters.tema.add(v); });
     if (h.get("practica")) h.get("practica").split(",").forEach(function (v) { filters.practica.add(v); });
     if (h.get("tipo")) h.get("tipo").split(",").forEach(function (v) { filters.tipo.add(v); });
@@ -468,6 +477,7 @@
     const count = function (field, fn) {
       return function (v) { return bank.filter(function (q) { return fn(q) === v; }).length; };
     };
+    buildChips("f-parcial", PARCIALES, "parcial", count("parcial", parcialOf));
     buildChips("f-tema", TEMAS, "tema", count("t", function (q) { return q.t; }));
     buildChips("f-practica", BLOQUES, "practica", count("p", blockOf));
     buildChips("f-tipo", TIPOS, "tipo", count("k", function (q) { return q.k; }));

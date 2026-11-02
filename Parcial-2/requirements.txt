@@ -1,0 +1,12 @@
+# Entorno del Parcial 2 (python -m venv .venv && .venv/bin/pip install -r requirements.txt)
+# d2l se instala aparte y sin dependencias (solo hace falta su módulo; así no arrastra el metapaquete jupyter):
+#   .venv/bin/pip install --no-deps d2l==1.0.0a0
+torch==2.15.0
+torchvision==0.29.2
+numpy==2.5.4
+pandas==3.1.0
+matplotlib==3.11.2
+matplotlib-inline
+requests
+ipykernel==7.4.0
+nbclient==0.11.0
