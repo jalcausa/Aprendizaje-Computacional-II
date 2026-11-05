@@ -17,7 +17,8 @@
 <script defer src="assets/js/preguntas-t1.js"></script>
 <script defer src="assets/js/preguntas-t2.js"></script>
 <script defer src="assets/js/preguntas-t3.js"></script>
-<script defer src="assets/js/preguntas-t4.js"></script>
+<script defer src="assets/js/preguntas-l0.js"></script>
+<script defer src="assets/js/preguntas-l1.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -28,7 +29,8 @@
     <a href="apuntes/tema-1.html">T1 · RNA</a>
     <a href="apuntes/tema-2.html">T2 · CNN</a>
     <a href="apuntes/tema-3.html">T3 · GAN</a>
-    <a href="apuntes/tema-4.html">T4 · Secuencias</a>
+    <a href="apuntes/lab-0.html">Lab 0</a>
+    <a href="apuntes/lab-1.html">Lab 1</a>
     <a href="test.html">Test</a>
   </nav>
   <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
@@ -39,14 +41,14 @@
     <div>
       <span class="eyebrow"><span class="dot"></span> Aprendizaje Computacional II · Parcial 2 en curso</span>
       <h1>Del modelo autorregresivo al Transformer,<br><em>entendiendo cada línea.</em></h1>
-      <p class="lead">El Parcial 2 trata el modelado de secuencias para NLP y series temporales. Resúmenes de teoría con diagramas, los labs resueltos y explicados con el código que importa, y un banco de preguntas tipo test con corrección inmediata y simulacros. El material del Parcial 1 (aprobado) sigue disponible abajo.</p>
+      <p class="lead">El Parcial 2 trata el modelado de secuencias para NLP y series temporales y se organiza por labs: cada uno con su teoría resumida y su cuaderno resuelto y explicados con el código que importa, y un banco de preguntas tipo test con corrección inmediata y simulacros. El material del Parcial 1 (aprobado) sigue disponible abajo.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="apuntes/tema-4.html">Abrir el Tema 4 ↗</a>
+        <a class="btn btn-primary" href="apuntes/lab-1.html">Abrir el Lab 1 ↗</a>
         <a class="btn btn-ghost" href="test.html#parcial=2">Test del Parcial 2</a>
       </div>
       <div class="hero-stats">
-        <div><strong>4</strong><span>temas</span></div>
-        <div><strong>7</strong><span>prácticas explicadas</span></div>
+        <div><strong>3 + 2</strong><span>temas + labs</span></div>
+        <div><strong>8</strong><span>prácticas explicadas</span></div>
         <div><strong id="n-preg">—</strong><span>preguntas tipo test</span></div>
         <div><strong id="n-code">—</strong><span>de código y cálculo</span></div>
       </div>
@@ -88,35 +90,56 @@
       </div>
       <div class="cards">
         <article class="card">
-          <div class="card-top"><span class="tag">Tema 4</span><span class="card-num">04</span></div>
-          <h3>Introducción al modelado de secuencias</h3>
-          <p>NLP y series temporales, evolución RNN → Transformer, datos secuenciales, modelos autorregresivos, ventana τ, condición de Markov, predicción a k pasos, MAE/MSE y modelos latentes.</p>
-          <ul><li><strong>L0</strong> · AR lineal sobre un seno con ruido: τ óptimo y error frente al horizonte</li><li><strong>L0</strong> · Temperaturas diarias e IBM frente a referencias ingenuas</li></ul>
-          <div class="card-foot"><a class="chip-link" href="apuntes/tema-4.html">Abrir apuntes →</a><a class="chip-link" href="test.html#tema=T4">Test T4</a></div>
+          <div class="card-top"><span class="tag">Lab 0</span><span class="card-num">L0</span></div>
+          <h3>Secuencias y modelos autorregresivos</h3>
+          <p>NLP y series temporales, evolución RNN → Transformer, ventana τ, autorregresión lineal, condición de Markov, predicción a k pasos, MAE/MSE y modelos latentes.</p>
+          <ul><li>Teoría de la introducción al parcial</li><li>Cuaderno: τ óptimo en un seno con ruido, error frente al horizonte, temperaturas e IBM</li></ul>
+          <div class="card-foot"><a class="chip-link" href="apuntes/lab-0.html">Abrir Lab 0 →</a><a class="chip-link" href="test.html#tema=L0">Test L0</a></div>
         </article>
+        <article class="card">
+          <div class="card-top"><span class="tag">Lab 1</span><span class="card-num">L1</span></div>
+          <h3>Del texto a secuencias y ley de Zipf</h3>
+          <p>Tokenización (caracteres, palabras, subpalabras), corpus, vocabulario, ley de Zipf, perplejidad, one-hot, BoW, TF-IDF y embeddings.</p>
+          <ul><li>Teoría: texto a secuencias y métricas</li><li>Cuaderno: exponente de Zipf en inglés y español, n-gramas y perplejidad</li></ul>
+          <div class="card-foot"><a class="chip-link" href="apuntes/lab-1.html">Abrir Lab 1 →</a><a class="chip-link" href="test.html#tema=L1">Test L1</a></div>
+        </article>
+      </div>
+      <div class="map-grid" style="margin-top:1.2rem">
         <article class="map-card t4">
-          <span class="tag ok">Tema 4</span>
+          <span class="tag ok">Lab 0</span>
           <h3>Qué tienes que dominar</h3>
           <ul>
             <li>Ventana deslizante: características $[x_{t-\tau},\dots,x_{t-1}]$, etiqueta $x_t$, $T-\tau$ ejemplos.</li>
             <li>AR lineal: $\min\sum(Y_t-(c+\phi_1Y_{t-1}))^2$, predicción $c+\phi_1Y_t$, punto fijo $c/(1-\phi_1)$.</li>
-            <li>Condición de Markov de orden τ y la factorización de primer orden.</li>
+            <li>Condición de Markov de orden τ y factorización de primer orden.</li>
             <li>Un paso frente a k pasos: realimentar y acumulación de errores.</li>
             <li>Partición temporal, MAE/MSE y comparar con la persistencia.</li>
             <li>AR frente a AR latente ($h_t=g(h_{t-1},x_{t-1})$).</li>
           </ul>
+        </article>
+        <article class="map-card t4">
+          <span class="tag ok">Lab 1</span>
+          <h3>Qué tienes que dominar</h3>
+          <ul>
+            <li>Flujo: cargar → tokenizar → vocabulario → índices; <code>&lt;unk&gt;</code>.</li>
+            <li>Caracteres frente a palabras frente a subpalabras (vocabulario, OOV, longitud).</li>
+            <li>Zipf: $\log n_i=-\alpha\log i+c$; α ≈ 1 en palabras y menor en n-gramas.</li>
+            <li>Perplejidad: $P(W)^{-1/n}=\exp(\text{entropía cruzada})$, entre 1 y |V|.</li>
+            <li>One-hot, BoW (sin orden) y TF-IDF calculados a mano.</li>
+          </ul>
           <h4>Basta con reconocer</h4>
-          <p style="color:var(--ink-2);font-size:.92rem;margin:0">Fechas de cada etapa (RNN, LSTM/GRU, Seq2Seq con atención, Transformer 2017) y las piezas de d2l.</p>
+          <p style="color:var(--ink-2);font-size:.92rem;margin:0">Tamaños de corpus y diccionarios, perplejidades de LLM conocidos y familias de embeddings.</p>
         </article>
       </div>
       <h3 style="margin:2.2rem 0 .9rem;font-size:1.1rem">Labs del Parcial 2</h3>
       <div class="timeline">
-        <a class="tl-item" href="apuntes/tema-4.html#l0"><span class="tag">L0</span><b>Modelo autorregresivo</b><span>Resuelto · τ, horizontes, datos reales</span></a>
-        <div class="tl-item soon"><span class="tag">L1</span><b>Trabajar con secuencias</b><span>Próximamente</span></div>
+        <a class="tl-item" href="apuntes/lab-0.html"><span class="tag">L0</span><b>Modelo autorregresivo</b><span>Teoría + cuaderno resuelto</span></a>
+        <a class="tl-item" href="apuntes/lab-1.html"><span class="tag">L1</span><b>Del texto a secuencias</b><span>Teoría + cuaderno resuelto</span></a>
         <div class="tl-item soon"><span class="tag">L2</span><b>RNN</b><span>Próximamente</span></div>
         <div class="tl-item soon"><span class="tag">L3</span><b>LSTM</b><span>Próximamente</span></div>
         <div class="tl-item soon"><span class="tag">L4</span><b>Embeddings / Seq2Seq</b><span>Próximamente</span></div>
         <div class="tl-item soon"><span class="tag">L5</span><b>Transformers</b><span>Próximamente</span></div>
+      </div>
       </div>
     </div>
   </section>

@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lab 1 · Del texto a secuencias — AC·II</title>
+<meta name="description" content="Lab 1 de Aprendizaje Computacional II (Parcial 2), teoría y cuaderno resuelto: tokenización, corpus, vocabulario, ley de Zipf, perplejidad, one-hot, BoW, TF-IDF y embeddings; Zipf en inglés y español.">
+<script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/site.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script defer src="../assets/js/site.js"></script>
+</head>
+<body>
+<div class="progress-line"></div>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-2M7 7l3 5M7 17l3-5M7 17l3 2M14 5l3 6M14 12h3M14 19l3-6"/></svg></span> AC·II <small>Aprendizaje Computacional II</small></a>
+  <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="../index.html">Inicio</a>
+    <a href="tema-1.html">T1 · RNA</a>
+    <a href="tema-2.html">T2 · CNN</a>
+    <a href="tema-3.html">T3 · GAN</a>
+    <a href="lab-0.html">Lab 0</a>
+    <a href="lab-1.html" aria-current="page">Lab 1</a>
+    <a href="../test.html">Test</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="../index.html">Inicio</a> / Parcial 2 / Lab 1</div>
+    <h1>Lab 1 · Del texto a secuencias: tokens, vocabulario y ley de Zipf</h1>
+    <p>Cómo se convierte un texto en una secuencia de números que una red pueda procesar, qué estadísticas tiene el lenguaje (la ley de Zipf), cómo se mide la calidad de un modelo de lenguaje (perplejidad) y qué representaciones de texto existen (one-hot, BoW, TF-IDF, embeddings). Con el cuaderno del Lab 1 resuelto: Zipf en inglés y en español.</p>
+    <div class="pill-row">
+      <a href="#l1-pipeline">Teoría</a>
+      <a href="#l1-zipf">Ley de Zipf</a>
+      <a href="#l1-pp">Perplejidad</a>
+      <a href="#l1">Cuaderno resuelto</a>
+      <a href="../test.html#tema=L1">Test del Lab 1 ↗</a>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc" aria-label="Índice del lab">
+    <details open><summary class="overline" style="cursor:pointer;list-style:none">Contenido</summary>
+    <ol data-auto></ol>
+    </details>
+  </aside>
+
+  <main class="notes">
+  <div class="part-title" data-part="Parte I · Teoría del Lab 1"><div><span>Parte I</span><h2>Teoría del Lab 1</h2></div></div>
+
+  <!-- ============================================================ 1 -->
+  <section id="l1-pipeline">
+    <h2 class="sec" data-short="Del texto a secuencias"><span class="n">1</span> Del texto en bruto a secuencias de números</h2>
+    <p>Una red neuronal solo trabaja con números. Para darle texto hace falta un <strong>preprocesado</strong> que lo convierta en vectores de entrada. Los flujos típicos siguen cuatro pasos:</p>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 720 170" width="720" role="img" aria-label="Flujo de preprocesado de texto">
+        <defs><marker id="ar51" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <rect x="8" y="20" width="160" height="80" rx="12" class="s-box"/>
+        <text x="88" y="44" text-anchor="middle" class="s-txt s-bold">1 · Cargar</text><text x="88" y="64" text-anchor="middle" class="s-mut">el texto como cadena</text>
+        <text x="88" y="86" text-anchor="middle" class="s-mono">"The Time…"</text>
+        <rect x="190" y="20" width="160" height="80" rx="12" class="s-soft"/>
+        <text x="270" y="44" text-anchor="middle" class="s-txt s-bold">2 · Tokenizar</text><text x="270" y="64" text-anchor="middle" class="s-mut">dividir en tokens</text>
+        <text x="270" y="86" text-anchor="middle" class="s-mono">'t','h','e',' ',…</text>
+        <rect x="372" y="20" width="160" height="80" rx="12" class="s-gold"/>
+        <text x="452" y="44" text-anchor="middle" class="s-txt s-bold">3 · Vocabulario</text><text x="452" y="64" text-anchor="middle" class="s-mut">token → índice</text>
+        <text x="452" y="86" text-anchor="middle" class="s-mono">{' ':0, 'a':1, …}</text>
+        <rect x="554" y="20" width="158" height="80" rx="12" class="s-navy"/>
+        <text x="633" y="44" text-anchor="middle" class="s-white s-bold" style="font:700 13px var(--font)">4 · Índices</text><text x="633" y="64" text-anchor="middle" style="fill:#c4d4f2;font:11px var(--font)">la secuencia numérica</text>
+        <text x="633" y="86" text-anchor="middle" style="fill:#fff;font:12px var(--font-mono)">[21, 9, 6, 0, …]</text>
+        <path d="M168 60 H186" class="s-acc" marker-end="url(#ar51)"/><path d="M350 60 H368" class="s-acc" marker-end="url(#ar51)"/><path d="M532 60 H550" class="s-acc" marker-end="url(#ar51)"/>
+        <text x="360" y="134" text-anchor="middle" class="s-mut">El proceso es reversible: con el vocabulario se recupera el texto a partir de los índices.</text>
+        <text x="360" y="152" text-anchor="middle" class="s-mut">Antes de tokenizar se suele limpiar el texto (minúsculas, quitar puntuación).</text>
+      </svg>
+      </div>
+    </figure>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="l1-token">
+    <h2 class="sec" data-short="Tokenización"><span class="n">2</span> Tokenización</h2>
+    <p>Los <strong>tokens</strong> son las unidades <strong>atómicas</strong> (indivisibles) del texto: cada paso de la secuencia es un token. Qué es exactamente un token es una <strong>decisión de diseño</strong>.</p>
+    <div class="compare">
+      <div><h5>Palabras</h5><p>«Baby needs a new pair of shoes» es una secuencia de <strong>7 palabras</strong>. El vocabulario de todas las palabras es <strong>muy grande</strong> (decenas o cientos de miles).</p></div>
+      <div><h5>Caracteres</h5><p>La misma frase es una secuencia mucho más larga de <strong>30 caracteres</strong>, pero con un vocabulario <strong>pequeño</strong> (solo hay 256 caracteres ASCII distintos).</p></div>
+    </div>
+    <h3 id="l1-tipos">Palabras, subpalabras y caracteres</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th></th><th>Caracteres</th><th>Palabras</th><th>Subpalabras</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Ejemplo</strong> («Machine learning is fun.»)</td><td>"M", "a", "c", "h", …</td><td>"Machine", "learning", "is", "fun", "."</td><td>"ma", "chine", "learn", "ing", …</td></tr>
+        <tr><td><strong>Unidad</strong></td><td>caracteres individuales</td><td>palabras completas (separadas por espacios o puntuación)</td><td>trozos de palabra (prefijos, raíces, sufijos)</td></tr>
+        <tr><td><strong>Tamaño del vocabulario</strong></td><td>muy pequeño (p. ej. 256)</td><td>muy grande (170 000+ en inglés)</td><td>intermedio, un equilibrio</td></tr>
+        <tr><td><strong>Palabras desconocidas (OOV)</strong></td><td>ninguna: toda palabra se descompone en caracteres conocidos</td><td>muchas: las palabras no vistas se marcan como <code>&lt;unk&gt;</code></td><td>se manejan bien: se parten en subpalabras conocidas</td></tr>
+        <tr><td><strong>Longitud de la secuencia</strong></td><td>muy larga (más cómputo)</td><td>corta</td><td>intermedia</td></tr>
+        <tr><td><strong>Significado</strong></td><td>un carácter casi no lleva significado</td><td>las palabras llevan mucho significado</td><td>las subpalabras llevan información morfológica</td></tr>
+      </tbody>
+    </table></div>
+    <h3 id="l1-bpe">Tokenización en subpalabras (estilo BPE)</h3>
+    <p>Los modelos de lenguaje actuales usan subpalabras. El algoritmo parte de caracteres y <strong>fusiona repetidamente el par más frecuente</strong>:</p>
+    <ol>
+      <li><strong>Vocabulario inicial</strong>: todos los caracteres del corpus (para «unhappiness»: u, n, h, a, p, i, e, s).</li>
+      <li><strong>Contar</strong> cuántas veces aparece cada par de símbolos adyacentes en todo el corpus.</li>
+      <li><strong>Fusionar el par más frecuente</strong> en un token nuevo (si ('e','s') es el más frecuente, se crea «es») y añadirlo al vocabulario.</li>
+      <li><strong>Repetir</strong> 2 y 3 hasta llegar al tamaño de vocabulario deseado (podrían formarse «un», «happ», «unhapp»…).</li>
+      <li><strong>Tokenizar</strong> palabras nuevas, incluso no vistas, con las fusiones aprendidas: «unhappiness» → ['un', 'happ', 'i', 'ness'].</li>
+    </ol>
+    <p>Ventajas: maneja palabras nuevas («unbelievableness» → «un», «believ», «able», «ness»), mantiene el vocabulario pequeño y equilibra eficiencia y flexibilidad.</p>
+    <div class="callout def"><div class="ct">◆ Tamaños de referencia</div><ul>
+      <li>Diccionario de la RAE: ≈ 94 000 palabras. Oxford English Dictionary: ≈ 301 000.</li>
+      <li><em>The Time Machine</em> (el libro del lab): ≈ 170 000 caracteres de 28 tipos y 32 775 palabras de ≈ 4 580 tipos distintos.</li>
+      <li>Longitud media de una palabra en inglés: 4,7 letras. Vocabulario de GPT-4: ≈ 100 000 tokens, de ≈ 4 caracteres de media.</li>
+    </ul></div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="l1-corpus">
+    <h2 class="sec" data-short="Corpus"><span class="n">3</span> Corpus</h2>
+    <p>Un <strong>corpus</strong> es una colección de textos escritos o hablados con la que se entrena un modelo. En el lab, el corpus es un libro descargado y preprocesado (sin puntuación). Tamaños típicos:</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Tipo de modelo</th><th>Tamaño del corpus</th><th>Ejemplos</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Fundacional</strong> (propósito general)</td><td>miles de millones a billones de tokens</td><td>GPT-3 (175 000 millones de parámetros) se entrenó con Common Crawl y otras fuentes; Common Corpus tiene ≈ 2 billones de tokens</td></tr>
+        <tr><td><strong>De dominio</strong> (preentrenamiento)</td><td>cientos de miles de millones de tokens</td><td>The Stack v2 (código): 775 000 millones de tokens</td></tr>
+        <tr><td><strong>Ajuste fino</strong></td><td>miles a millones de tokens</td><td>notas clínicas, artículos científicos…</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="l1-vocab">
+    <h2 class="sec" data-short="Vocabulario"><span class="n">4</span> Vocabulario: de tokens a números</h2>
+    <p>Un <strong>vocabulario</strong> asocia a cada token distinto un <strong>índice único</strong>:</p>
+    <ol>
+      <li>Se determina el conjunto de tokens únicos del corpus de entrenamiento.</li>
+      <li>Se asigna un índice numérico a cada uno. Los tokens <strong>raros</strong> suelen descartarse (umbral <code>min_freq</code>).</li>
+      <li>Cualquier token que no se haya visto en el entrenamiento se representa con el token especial <code>&lt;unk&gt;</code> (<em>unknown</em>).</li>
+    </ol>
+<pre data-code="Uso del vocabulario (lab)">
+vocab = Vocab(tokens)
+indices = vocab[tokens[:10]]
+print('indices:', indices)                # [21, 9, 6, 0, 21, 10, 14, 6, 0, 14]
+print('words:', vocab.to_tokens(indices)) # ['t', 'h', 'e', ' ', 't', 'i', 'm', 'e', ' ', 'm']
+</pre>
+    <p>A nivel de carácter, <em>The Time Machine</em> da un vocabulario de <strong>28</strong> elementos: 26 letras + el espacio + <code>&lt;unk&gt;</code> (que el vocabulario incluye siempre, aunque no aparezca). El carácter más frecuente es el <strong>espacio</strong> y después la <strong>«e»</strong>.</p>
+    <div class="callout exam"><div class="ct">★ Ojo con el código del lab</div><p>La clase <code>Vocab</code> ordena los índices <strong>alfabéticamente</strong> (<code>sorted</code>), no por frecuencia: el espacio tiene índice 0 por ser el primer carácter en el orden ASCII, y <code>&lt;unk&gt;</code> el 1. Lo que sí está ordenado por frecuencia es <code>token_freqs</code>, la lista (token, frecuencia).</p></div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="l1-zipf">
+    <h2 class="sec" data-short="Ley de Zipf"><span class="n">5</span> Estadísticas del lenguaje: la ley de Zipf</h2>
+    <p>Con tokens de tipo palabra (<code>text.split()</code>) se pueden contar frecuencias. Las palabras más frecuentes de <em>The Time Machine</em> son <em>the</em> (2 261), <em>i</em> (1 267), <em>and</em> (1 245), <em>of</em> (1 155), <em>a</em> (816)… Son <strong><em>stop words</em></strong>: artículos, pronombres y preposiciones, frecuentes por su función sintáctica pero poco descriptivas. Los clasificadores antiguos basados en bolsa de palabras las eliminaban; los modelos neuronales modernos (RNN, Transformer) no lo necesitan, porque también aportan significado.</p>
+    <div class="callout def"><div class="ct">◆ Ley de Zipf</div>
+      <p>La frecuencia $n_i$ de la $i$-ésima palabra más frecuente sigue una <strong>recta en escala log-log</strong> (tras las primeras palabras, que son excepciones):</p>
+      <p>$$n_i\propto\frac{1}{i^{\alpha}}\qquad\Longleftrightarrow\qquad \log n_i=-\alpha\log i+c$$</p>
+      <p>$\alpha$ es el <strong>exponente</strong> que caracteriza la distribución (la pendiente de la recta, cambiada de signo) y $c$ una constante. Para palabras, $\alpha\approx1$: la palabra de rango 2 aparece la mitad de veces que la primera; la de rango 10, una décima parte.</p></div>
+    <h3 id="l1-ngramas">Bigramas y trigramas</h3>
+    <p>Un <strong>bigrama</strong> es un par de palabras consecutivas («of the») y un <strong>trigrama</strong>, un trío («the time traveller»). También siguen la ley de Zipf, pero con <strong>exponente menor</strong> (rectas más planas): hay muchas más combinaciones posibles y la frecuencia se reparte entre ellas.</p>
+    <div class="callout key"><div class="ct">◆ Consecuencias para el modelado</div><ul>
+      <li>Hay <strong>mucha estructura</strong>: el número de n-gramas distintos que aparecen de verdad es mucho menor que el de combinaciones posibles.</li>
+      <li>La mayoría de palabras y casi todos los n-gramas son <strong>raros</strong> (aparecen una vez). Un modelo que solo cuenta no puede estimar bien su probabilidad: sobrestima la cola o le asigna 0.</li>
+      <li>Por eso se usan <strong>modelos de aprendizaje profundo</strong>, que generalizan entre contextos parecidos.</li>
+    </ul></div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="l1-pp">
+    <h2 class="sec" data-short="Perplejidad"><span class="n">6</span> Perplejidad: cómo evaluar un modelo de lenguaje</h2>
+    <p>Predecir la siguiente palabra es la tarea central de los modelos de lenguaje (LLM). Un buen modelo predice con mucha precisión lo que viene después. Continuaciones de «It is raining…» propuestas por tres modelos:</p>
+    <ol>
+      <li>«It is raining <strong>outside</strong>» — correcta y natural.</li>
+      <li>«It is raining <strong>banana tree</strong>» — palabras reales, pero sin sentido.</li>
+      <li>«It is raining <strong>piouw;kcj pwepoiut</strong>» — ni siquiera palabras.</li>
+    </ol>
+    <p>Queremos una medida de la <strong>incertidumbre</strong> («sorpresa») del modelo al elegir el siguiente token: mínima para un modelo totalmente seguro y máxima para uno aleatorio. Esa medida, basada en probabilidad y entropía, es la <strong>perplejidad</strong>: <strong>mínimo 1</strong> y <strong>máximo el número de palabras del vocabulario</strong>.</p>
+    <h3 id="l1-pp-ejemplo">Calcularla a partir de probabilidades de frases</h3>
+    <p>Un modelo pequeño solo puede predecir 6 palabras: «a», «the», «red», «fox», «dog», «.». La probabilidad de una frase $W=w_1w_2\dots w_n$ se descompone con la regla de la cadena:</p>
+    <div class="formula">$$P(\text{«a red fox.»})=P(\text{a})\cdot P(\text{red}\mid\text{a})\cdot P(\text{fox}\mid\text{a red})\cdot P(\text{.}\mid\text{a red fox})=0{,}4\cdot0{,}27\cdot0{,}55\cdot0{,}79=0{,}0469$$</div>
+    <p>Como es un producto de probabilidades, <strong>cuanto más larga la frase, menor su probabilidad</strong>. Para comparar frases de distinta longitud se <strong>normaliza</strong> con la raíz $n$-ésima (media geométrica):</p>
+    <div class="formula">$$P_{norm}(W)=P(W)^{1/n}=0{,}0469^{1/4}=0{,}465\qquad\Rightarrow\qquad PP(W)=\frac{1}{P_{norm}(W)}=\frac{1}{0{,}465}=2{,}15$$</div>
+    <p>Con un <strong>modelo aleatorio</strong> que da probabilidad 1/6 a cada palabra: $P=(1/6)^4=0{,}00077$, $P_{norm}=1/6$ y $PP=\mathbf 6$, el tamaño del vocabulario. Cuanto <strong>menor</strong> la perplejidad sobre una frase bien escrita, mejor el modelo.</p>
+    <div class="formula">$$\text{Perplejidad}(W)=\sqrt[N]{\frac{1}{P(w_1,\dots,w_N)}}=\exp\Big(-\frac1n\sum_{t=1}^{n}\log P(x_t\mid x_{t-1},\dots,x_1)\Big)=\exp(\text{entropía cruzada})$$</div>
+    <div class="compare">
+      <div><h5>Interpretación</h5><ul>
+        <li><strong>Menor es mejor</strong>: el modelo está más seguro de sus predicciones.</li>
+        <li><strong>Número efectivo de opciones</strong>: PP = 10 equivale a dudar entre 10 opciones igual de probables.</li>
+        <li><strong>Mejor caso</strong>: el modelo da probabilidad 1 al token correcto → PP = 1.</li>
+        <li><strong>Referencia</strong>: distribución uniforme sobre el vocabulario → PP = |V|.</li></ul></div>
+      <div><h5>Valores típicos de LLM</h5><ul>
+        <li>GPT-2 (small): ≈ 35 en WikiText-2.</li>
+        <li>GPT-2 (large): ≈ 20 en WikiText-2.</li>
+        <li>GPT-3: estimado ≈ 20–30 en varios corpus.</li>
+        <li>LLaMA (7B): ≈ 10–15 en Penn Treebank o WikiText.</li></ul></div>
+    </div>
+    <p>Entre 2018 y 2022, una perplejidad menor se correlacionaba fuertemente con mejores modelos. Entre 2023 y 2026 sigue siendo <strong>necesaria pero insuficiente</strong> para explicar las mejoras de capacidad: los LLM se evalúan además con <strong>benchmarks de razonamiento</strong> (GPQA, MATH, AIME), <strong>tareas agénticas</strong>, <strong>programación</strong>, <strong>veracidad</strong> y <strong>recuperación en contextos largos</strong>.</p>
+    <h3 id="l1-pp-ej">Ejercicio resuelto</h3>
+    <p>Un modelo asigna a las cuatro palabras de una frase (cada una dada las anteriores) las probabilidades 0,5; 0,25; 0,5 y 0,125. Calcula la perplejidad.</p>
+    <details class="solution"><summary>Ver la solución</summary><div>
+      <p>$P(W)=0{,}5\cdot0{,}25\cdot0{,}5\cdot0{,}125=2^{-1}\cdot2^{-2}\cdot2^{-1}\cdot2^{-3}=2^{-7}=0{,}0078$.</p>
+      <p>$PP=P(W)^{-1/4}=2^{7/4}\approx\mathbf{3{,}36}$. Equivalente: $\exp\big(-\tfrac14(\ln0{,}5+\ln0{,}25+\ln0{,}5+\ln0{,}125)\big)=\exp(7\ln2/4)\approx3{,}36$. El modelo duda, en promedio, como si eligiera entre unas 3,4 palabras igual de probables.</p></div></details>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="l1-repr">
+    <h2 class="sec" data-short="Representaciones del texto"><span class="n">7</span> Representaciones del texto</h2>
+    <p>En el Lab 2 se entrenará una <strong>RNN</strong>; en este lab se trabaja con las secuencias y las métricas. Una RNN de caracteres recibe en cada paso un carácter (por ejemplo, «h», «e», «l», «l» para predecir «e», «l», «l», «o») y necesita que cada uno sea un vector.</p>
+    <h3 id="l1-onehot">One-hot</h3>
+    <p>Cada token se representa con un vector de <strong>longitud igual al tamaño del vocabulario</strong>, con todo a 0 salvo un 1 en la posición de su índice. Con el vocabulario <code>{"h": 0, "e": 1, "l": 2, "o": 3}</code>, «hello» queda:</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Carácter</th><th class="num">Índice</th><th>Vector one-hot</th></tr></thead>
+      <tbody>
+        <tr><td>h</td><td class="num">0</td><td><code>[1, 0, 0, 0]</code></td></tr>
+        <tr><td>e</td><td class="num">1</td><td><code>[0, 1, 0, 0]</code></td></tr>
+        <tr><td>l</td><td class="num">2</td><td><code>[0, 0, 1, 0]</code></td></tr>
+        <tr><td>l</td><td class="num">2</td><td><code>[0, 0, 1, 0]</code></td></tr>
+        <tr><td>o</td><td class="num">3</td><td><code>[0, 0, 0, 1]</code></td></tr>
+      </tbody>
+    </table></div>
+    <h3 id="l1-evolucion">Evolución de las representaciones</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Etapa</th><th>Representación</th><th>Captura</th><th>Limitación</th></tr></thead>
+      <tbody>
+        <tr><td><strong>One-hot</strong></td><td><code>[0, 1, 0, …]</code></td><td>identidad</td><td>sin semántica</td></tr>
+        <tr><td><strong>Frecuencias</strong></td><td>BoW, TF-IDF</td><td>importancia estadística</td><td>sin significado</td></tr>
+        <tr><td><strong>Embeddings fijos</strong></td><td>Word2Vec, GloVe</td><td>semántica general</td><td>un vector por palabra (sin contexto)</td></tr>
+        <tr><td><strong>Embeddings contextuales</strong></td><td>BERT, GPT, LLaMA</td><td>significado según el contexto</td><td>mayor complejidad</td></tr>
+      </tbody>
+    </table></div>
+    <h3 id="l1-bow">Bolsa de palabras (BoW)</h3>
+    <p>Un vector del tamaño del vocabulario con el <strong>número de veces</strong> que aparece cada token. Ejemplo de las diapositivas con los caracteres de «cat in the hat» y el vocabulario <code>[c, a, t, ' ', i, n, h, e]</code>:</p>
+    <div class="formula">$$\text{BoW}(\text{«cat in the hat»})=[1,\ 2,\ 3,\ 3,\ 1,\ 1,\ 2,\ 1]$$</div>
+    <div class="callout warn"><div class="ct">✕ Errata de la diapositiva</div><p>La diapositiva dice que «t» aparece 2 veces, pero aparece <strong>3</strong>: ca<strong>t</strong>, <strong>t</strong>he, ha<strong>t</strong> (comprobado en el cuaderno). El resto de recuentos es correcto.</p></div>
+    <p>El BoW representa <strong>qué</strong> tokens hay y cuántas veces, pero <strong>ignora el orden</strong>: «the in cat hat» da exactamente el mismo vector. Por eso <strong>no se usa como entrada de una RNN</strong>, que está diseñada precisamente para aprovechar el orden.</p>
+    <h3 id="l1-tfidf">TF-IDF</h3>
+    <p>Pondera cada palabra por lo <strong>representativa y discriminante</strong> que es para un documento. Muy usado en recuperación de información, minería de textos y buscadores.</p>
+    <div class="formula-grid">
+      <div class="formula">$$\text{TF}(t,d)=\frac{\text{veces que aparece }t\text{ en }d}{\text{palabras de }d}$$<small>frecuencia del término en el documento</small></div>
+      <div class="formula">$$\text{IDF}(t,D)=\log\frac{\text{documentos de }D}{\text{documentos que contienen }t}$$<small>rareza del término en la colección</small></div>
+    </div>
+    <p>$\text{TF-IDF}(t,d)=\text{TF}(t,d)\cdot\text{IDF}(t,D)$. Ejemplo con <strong>Doc 1</strong> «The cat sat on the mat» (6 palabras) y <strong>Doc 2</strong> «The dog chased the cat» (5 palabras), con $\log_{10}$:</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Término</th><th class="num">TF doc 1</th><th class="num">TF doc 2</th><th class="num">IDF</th><th class="num">TF-IDF doc 1</th><th class="num">TF-IDF doc 2</th></tr></thead>
+      <tbody>
+        <tr><td>the</td><td class="num">2/6 = 0,333</td><td class="num">2/5 = 0,4</td><td class="num">log(2/2) = 0</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td>cat</td><td class="num">1/6 = 0,167</td><td class="num">1/5 = 0,2</td><td class="num">log(2/2) = 0</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td>sat, on, mat</td><td class="num">1/6 = 0,167</td><td class="num">0</td><td class="num">log(2/1) = 0,301</td><td class="num">0,05</td><td class="num">0</td></tr>
+        <tr><td>dog, chased</td><td class="num">0</td><td class="num">1/5 = 0,2</td><td class="num">0,301</td><td class="num">0</td><td class="num">0,06</td></tr>
+      </tbody>
+    </table></div>
+    <p>«the» y «cat» están en todos los documentos: IDF = 0 y desaparecen, aunque sean frecuentes. Las palabras propias de cada documento reciben el peso. Ventajas: <strong>simple y rápido</strong>, sin entrenamiento ni etiquetas; en tareas sencillas o con pocos datos puede incluso superar a los embeddings. Fue el método dominante antes de los embeddings, que resuelven su principal limitación: <strong>no entiende el significado</strong>.</p>
+    <h3 id="l1-emb">Embeddings</h3>
+    <p>Un <strong>embedding</strong> lleva datos complejos y de alta dimensión (palabras, imágenes, documentos) a un <strong>espacio vectorial</strong> diseñado para capturar el <strong>significado y las relaciones semánticas</strong>: los elementos parecidos quedan cerca.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Familia</th><th>Ejemplos</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Tradicionales</strong></td><td>vector de recuentos, TF-IDF, matriz de coocurrencia</td></tr>
+        <tr><td><strong>Estáticos</strong></td><td>Word2Vec, GloVe, FastText</td></tr>
+        <tr><td><strong>Contextuales</strong></td><td>ELMo, GPT y GPT-2, BERT, DeepSeek, LLaMA, GPT-4</td></tr>
+      </tbody>
+    </table></div>
+    <p>El ejemplo clásico: el espacio aprende una dirección relacionada con el género a partir de los patrones de uso, de modo que $\vec{\text{king}}-\vec{\text{man}}+\vec{\text{woman}}\approx\vec{\text{queen}}$.</p>
+    <div class="mini-quiz"><p><strong>¿Lo tienes?</strong> Practica las preguntas de teoría del Lab 1.</p><a class="btn btn-solid" href="../test.html#tema=L1&amp;practica=teoria">Test de teoría L1 →</a></div>
+  </section>
+
+  <!-- ============================================================ CUADERNO -->
+  <div class="part-title" data-part="Parte II · Cuaderno del Lab 1"><div><span>Parte II</span><h2>Cuaderno del Lab 1 resuelto</h2></div></div>
+
+  <section id="l1">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Lab 1 · Zipf en inglés y español">Lab 1 · Del texto a secuencias y ley de Zipf</h2><span>PyTorch + d2l · L1_resuelta.ipynb</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li><strong>1</strong>: ejecutar el cuaderno <code>L1NB.ipynb</code> y entender sus órdenes.</li>
+          <li><strong>2</strong>: ajuste lineal del <strong>exponente de Zipf</strong> en <em>The Time Machine</em> para unigramas, bigramas y trigramas, quitando los primeros valores y los de frecuencia 1, con $R^2$ o MSE.</li>
+          <li><strong>3</strong>: repetir con el texto en español <em>Juvenilia</em>.</li>
+          <li><strong>4</strong>: comparar idiomas (palabras, caracteres, exponentes) y con la literatura, teniendo en cuenta el tamaño del corpus.</li>
+          <li><strong>5</strong>: revisar one-hot, TF-IDF y perplejidad.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Cuaderno base ejecutado y comentado celda a celda.</li>
+          <li>Ajuste por mínimos cuadrados en log-log con rangos &gt; 10 y frecuencia ≥ 2, con $R^2$ y MSE, y un <strong>análisis de sensibilidad</strong> a los cortes.</li>
+          <li>Preprocesado del español que <strong>conserva tildes y ñ</strong>, comparado con Unidecode.</li>
+          <li>Comparación con <strong>el mismo tamaño de corpus</strong> y un ajuste alternativo por intervalos.</li>
+          <li>One-hot, BoW, TF-IDF y perplejidad calculados; perplejidad de modelos de n-gramas de caracteres.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="l1-base">Parte A · El cuaderno base, paso a paso</h3>
+    <div class="nb-step" data-step="1">
+      <h4>Descarga del libro</h4>
+<pre data-code="Clase TimeMachine">
+class TimeMachine(d2l.DataModule):  #@save
+    """The Time Machine dataset."""
+    def _download(self):
+        fname = d2l.download(d2l.DATA_URL + 'timemachine.txt', self.root,
+                             '090b5e7e70c295757f55df93cb0a180b9691891a')   # hash SHA-1 de integridad
+        with open(fname) as f:
+            return f.read()                      # todo el libro en UNA cadena (178 979 caracteres)
+
+data = TimeMachine(root=str(LAB_DIR / 'data'))   # se guarda en Lab-1/data/
+raw_text = data._download()
+</pre>
+      <p class="code-note"><code>d2l.download</code> solo descarga si el archivo no existe o su hash no coincide. Los métodos se añaden después a la clase con <code>@d2l.add_to_class</code>.</p>
+    </div>
+    <div class="nb-step" data-step="2">
+      <h4>Preprocesado y tokenización en caracteres</h4>
+<pre data-code="_preprocess y _tokenize">
+def _preprocess(self, text):
+    return re.sub('[^A-Za-z]+', ' ', text).lower()   # cada racha de no-letras → un espacio
+
+def _tokenize(self, text):
+    return list(text)                                 # un token por carácter
+
+# 'the time machine by h g wells i the time traveller for so it'
+# t,h,e, ,t,i,m,e, ,m,a,c,h,i,n,e, ,b,y, ,h, ,g, ,w,e,l,l,s,
+</pre>
+      <p class="code-note">El <code>+</code> del regex hace que «. ¿» o un salto de línea se conviertan en <strong>un solo</strong> espacio. Se pierden la puntuación, los números y las mayúsculas: el alfabeto queda en 26 letras + espacio.</p>
+    </div>
+    <div class="nb-step" data-step="3">
+      <h4>Vocabulario</h4>
+<pre data-code="Clase Vocab (lo esencial)">
+counter = collections.Counter(tokens)                       # frecuencia de cada token
+self.token_freqs = sorted(counter.items(), key=lambda x: x[1], reverse=True)
+self.idx_to_token = list(sorted(set(['&lt;unk&gt;'] + reserved_tokens + [
+    token for token, freq in self.token_freqs if freq >= min_freq])))   # orden ALFABÉTICO
+self.token_to_idx = {token: idx for idx, token in enumerate(self.idx_to_token)}
+
+def __getitem__(self, tokens):                              # vocab['a'] o vocab[['a', 'b']]
+    if not isinstance(tokens, (list, tuple)):
+        return self.token_to_idx.get(tokens, self.unk)       # desconocido → índice de &lt;unk&gt;
+    return [self.__getitem__(token) for token in tokens]
+</pre>
+      <p class="code-note">Ejemplo de la ejecución: <code>vocab['ñ']</code> devuelve 1, el índice de <code>&lt;unk&gt;</code>, porque la «ñ» no aparece en el libro inglés. <code>build</code> encadena todo y devuelve el corpus (173 428 índices) y el vocabulario (28 tokens). Las diapositivas dan 170 580 caracteres, probablemente por otra versión del archivo; no cambia nada.</p>
+    </div>
+    <div class="nb-step" data-step="4">
+      <h4>Palabras, bigramas y trigramas</h4>
+<pre data-code="Frecuencias de n-gramas de palabras">
+words = text.split()                                                   # 32 775 palabras
+vocab = Vocab(words)                                                   # 4 580 entradas (con &lt;unk&gt;)
+bigram_tokens = ['--'.join(pair) for pair in zip(words[:-1], words[1:])]
+trigram_tokens = ['--'.join(triple) for triple in zip(words[:-2], words[1:-1], words[2:])]
+d2l.plot([freqs, bigram_freqs, trigram_freqs], xscale='log', yscale='log', ...)
+</pre>
+      <p class="code-note"><code>zip</code> con la lista desplazada empareja cada palabra con la siguiente; se unen con <code>--</code> para que cada n-grama sea un único token. Bigramas más frecuentes: <em>of the</em> (309), <em>in the</em> (169), <em>i had</em> (130)… nueve de diez son solo <em>stop words</em>. Trigramas: <em>the time traveller</em> (59), <em>the time machine</em> (30), <em>the medical man</em> (24).</p>
+    </div>
+
+    <h3 id="l1-herr">Herramienta: el ajuste de Zipf</h3>
+<pre data-code="ajustar_zipf (cuaderno resuelto)">
+def ajustar_zipf(freqs, saltar=10, min_freq=2):
+    """Ajuste log10(n_i) = -alpha·log10(i) + c con los rangos i > saltar y frecuencia >= min_freq."""
+    f = np.asarray(freqs, dtype=float)
+    rango = np.arange(1, len(f) + 1)
+    usar = (rango > saltar) &amp; (f >= min_freq)          # quita las primeras y la cola de frecuencia 1
+    x, y = np.log10(rango[usar]), np.log10(f[usar])
+    pendiente, c = np.polyfit(x, y, 1)                  # recta por mínimos cuadrados
+    residuos = y - (pendiente * x + c)
+    return {'alpha': -pendiente, 'c': c,
+            'R2': 1 - (residuos ** 2).sum() / ((y - y.mean()) ** 2).sum(),
+            'MSE': (residuos ** 2).mean(), ...}
+</pre>
+    <p class="code-note">$\alpha$ es la pendiente cambiada de signo. El $R^2$ y el MSE se calculan en el espacio log-log, que es donde se hace el ajuste. El exponente no depende de la base del logaritmo; el MSE sí (aquí, en unidades de $\log_{10}$ al cuadrado).</p>
+    <div class="callout key"><div class="ct">◆ Por qué esos cortes</div><ul>
+      <li><strong>Primeros 10 rangos fuera</strong>: las <em>stop words</em> más frecuentes se apartan de la recta (la curva es más plana al principio).</li>
+      <li><strong>Frecuencia 1 fuera</strong>: más de la mitad de las palabras (y el 95 % de los trigramas) aparecen una vez y forman una <strong>meseta horizontal</strong> larguísima que no es una recta. Incluirla aplasta la pendiente.</li>
+    </ul></div>
+
+    <h3 id="l1-ej2">Ejercicio 2 · Exponente de Zipf en <em>The Time Machine</em></h3>
+    <figure class="diagram">
+      <div class="svg-scroll">
+<svg viewBox="0 0 600 300" width="600" role="img" aria-label="Ley de Zipf en The Time Machine">
+<path d="M56 194.0 H490 M56 134.0 H490 M56 74.0 H490 M56 14.0 H490 M142.8 14 V254 M229.6 14 V254 M316.4 14 V254 M403.2 14 V254 M490.0 14 V254" class="s-grid"/>
+<path d="M56 254 H490 M56 14 V254" class="s-thin"/>
+<text x="48" y="258.0" text-anchor="end" class="s-mut">10⁰</text>
+<text x="48" y="198.0" text-anchor="end" class="s-mut">10¹</text>
+<text x="48" y="138.0" text-anchor="end" class="s-mut">10²</text>
+<text x="48" y="78.0" text-anchor="end" class="s-mut">10³</text>
+<text x="48" y="18.0" text-anchor="end" class="s-mut">10⁴</text>
+<text x="56.0" y="270" text-anchor="middle" class="s-mut">10⁰</text>
+<text x="142.8" y="270" text-anchor="middle" class="s-mut">10¹</text>
+<text x="229.6" y="270" text-anchor="middle" class="s-mut">10²</text>
+<text x="316.4" y="270" text-anchor="middle" class="s-mut">10³</text>
+<text x="403.2" y="270" text-anchor="middle" class="s-mut">10⁴</text>
+<text x="490.0" y="270" text-anchor="middle" class="s-mut">10⁵</text>
+<text x="273.0" y="290" text-anchor="middle" class="s-mut">rango i (escala log)</text>
+<text x="14" y="134.0" text-anchor="middle" class="s-mut" transform="rotate(-90 14 134.0)">frecuencia n(i) (escala log)</text>
+<path d="M56.0,52.7 L82.1,67.8 L97.4,68.3 L108.3,70.2 L116.7,79.3 L123.5,83.5 L129.4,89.5 L134.4,90.0 L138.8,95.2 L142.8,95.4 L149.7,101.1 L152.7,107.1 L158.1,110.9 L162.8,113.9 L167.0,115.9 L170.8,123.1 L175.8,126.4 L180.2,128.6 L185.5,129.2 L190.0,130.8 L194.1,132.7 L198.7,136.2 L203.5,138.2 L207.7,140.1 L212.8,142.9 L217.2,147.3 L221.7,150.5 L226.5,153.1 L231.1,156.0 L235.5,159.9 L240.1,162.1 L244.9,165.4 L249.4,169.1 L254.0,173.5 L258.6,175.9 L263.2,181.8 L267.9,185.2 L272.5,187.2 L277.0,191.5 L281.7,194.0 L286.3,199.8 L290.9,203.3 L295.5,203.3 L300.0,207.3 L304.7,212.1 L309.3,217.9 L313.9,217.9 L318.5,225.4 L323.1,225.4 L327.7,225.4 L332.3,235.9 L336.9,235.9 L341.5,235.9 L346.1,254.0 L350.7,254.0 L355.3,254.0 L359.9,254.0 L364.5,254.0 L369.1,254.0 L373.8,254.0" class="s-acc" style="stroke-width:1.8"/>
+<path d="M146.4,97.8 L345.8,241.0" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"><title>ajuste unigramas: α = 1,04, R² = 0,990 (rangos 11–2182)</title></path>
+<circle cx="56.0" cy="52.7" r="5" style="fill:transparent"><title>unigramas · rango 1: 2261 veces</title></circle>
+<circle cx="108.3" cy="70.2" r="5" style="fill:transparent"><title>unigramas · rango 4: 1155 veces</title></circle>
+<circle cx="129.4" cy="89.5" r="5" style="fill:transparent"><title>unigramas · rango 7: 552 veces</title></circle>
+<circle cx="142.8" cy="95.4" r="5" style="fill:transparent"><title>unigramas · rango 10: 440 veces</title></circle>
+<circle cx="158.1" cy="110.9" r="5" style="fill:transparent"><title>unigramas · rango 15: 243 veces</title></circle>
+<circle cx="170.8" cy="123.1" r="5" style="fill:transparent"><title>unigramas · rango 21: 152 veces</title></circle>
+<circle cx="185.5" cy="129.2" r="5" style="fill:transparent"><title>unigramas · rango 31: 120 veces</title></circle>
+<circle cx="198.7" cy="136.2" r="5" style="fill:transparent"><title>unigramas · rango 44: 92 veces</title></circle>
+<circle cx="212.8" cy="142.9" r="5" style="fill:transparent"><title>unigramas · rango 64: 71 veces</title></circle>
+<circle cx="226.5" cy="153.1" r="5" style="fill:transparent"><title>unigramas · rango 92: 48 veces</title></circle>
+<circle cx="240.1" cy="162.1" r="5" style="fill:transparent"><title>unigramas · rango 132: 34 veces</title></circle>
+<circle cx="254.0" cy="173.5" r="5" style="fill:transparent"><title>unigramas · rango 191: 22 veces</title></circle>
+<circle cx="267.9" cy="185.2" r="5" style="fill:transparent"><title>unigramas · rango 276: 14 veces</title></circle>
+<circle cx="281.7" cy="194.0" r="5" style="fill:transparent"><title>unigramas · rango 398: 10 veces</title></circle>
+<circle cx="295.5" cy="203.3" r="5" style="fill:transparent"><title>unigramas · rango 574: 7 veces</title></circle>
+<circle cx="309.3" cy="217.9" r="5" style="fill:transparent"><title>unigramas · rango 828: 4 veces</title></circle>
+<circle cx="323.1" cy="225.4" r="5" style="fill:transparent"><title>unigramas · rango 1194: 3 veces</title></circle>
+<circle cx="336.9" cy="235.9" r="5" style="fill:transparent"><title>unigramas · rango 1723: 2 veces</title></circle>
+<circle cx="350.7" cy="254.0" r="5" style="fill:transparent"><title>unigramas · rango 2486: 1 veces</title></circle>
+<circle cx="364.5" cy="254.0" r="5" style="fill:transparent"><title>unigramas · rango 3586: 1 veces</title></circle>
+<path d="M498 20 H512" class="s-acc"/>
+<text x="516" y="24" class="s-txt-2" style="font-weight:600">unigramas</text>
+<text x="516" y="35" class="s-mut">α = 1,04</text>
+<path d="M56.0,104.6 L82.1,120.3 L97.4,127.2 L108.3,131.0 L116.7,131.8 L123.5,133.5 L129.4,134.3 L138.8,140.5 L142.8,142.2 L149.7,144.4 L152.7,146.5 L158.1,146.9 L165.0,151.5 L168.9,152.6 L175.8,154.8 L180.2,155.4 L185.5,157.9 L191.1,159.9 L196.9,162.1 L201.9,165.4 L207.7,168.1 L213.4,171.2 L218.8,173.5 L223.9,174.7 L229.2,178.7 L234.9,181.8 L240.1,183.4 L245.6,185.2 L250.9,187.2 L256.5,191.5 L261.8,194.0 L267.3,196.7 L272.7,199.8 L278.1,199.8 L283.5,203.3 L289.0,207.3 L294.3,212.1 L299.8,212.1 L305.2,217.9 L310.6,217.9 L316.0,217.9 L321.4,225.4 L326.8,225.4 L332.3,225.4 L337.7,235.9 L343.1,235.9 L348.5,235.9 L353.9,235.9 L359.4,235.9 L364.8,235.9 L370.2,254.0 L375.6,254.0 L381.0,254.0 L386.4,254.0 L391.8,254.0 L397.3,254.0 L402.7,254.0 L408.1,254.0 L413.5,254.0 L418.9,254.0 L424.4,254.0 L429.8,254.0" class="s-goldl" style="stroke-width:1.8"/>
+<path d="M146.4,143.0 L364.8,241.5" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"><title>ajuste bigramas: α = 0,65, R² = 0,965 (rangos 11–3609)</title></path>
+<circle cx="56.0" cy="104.6" r="5" style="fill:transparent"><title>bigramas · rango 1: 309 veces</title></circle>
+<circle cx="108.3" cy="131.0" r="5" style="fill:transparent"><title>bigramas · rango 4: 112 veces</title></circle>
+<circle cx="129.4" cy="134.3" r="5" style="fill:transparent"><title>bigramas · rango 7: 99 veces</title></circle>
+<circle cx="149.7" cy="144.4" r="5" style="fill:transparent"><title>bigramas · rango 12: 67 veces</title></circle>
+<circle cx="165.0" cy="151.5" r="5" style="fill:transparent"><title>bigramas · rango 18: 51 veces</title></circle>
+<circle cx="180.2" cy="155.4" r="5" style="fill:transparent"><title>bigramas · rango 27: 44 veces</title></circle>
+<circle cx="196.9" cy="162.1" r="5" style="fill:transparent"><title>bigramas · rango 42: 34 veces</title></circle>
+<circle cx="213.4" cy="171.2" r="5" style="fill:transparent"><title>bigramas · rango 65: 24 veces</title></circle>
+<circle cx="229.2" cy="178.7" r="5" style="fill:transparent"><title>bigramas · rango 99: 18 veces</title></circle>
+<circle cx="245.6" cy="185.2" r="5" style="fill:transparent"><title>bigramas · rango 153: 14 veces</title></circle>
+<circle cx="261.8" cy="194.0" r="5" style="fill:transparent"><title>bigramas · rango 235: 10 veces</title></circle>
+<circle cx="278.1" cy="199.8" r="5" style="fill:transparent"><title>bigramas · rango 362: 8 veces</title></circle>
+<circle cx="294.3" cy="212.1" r="5" style="fill:transparent"><title>bigramas · rango 557: 5 veces</title></circle>
+<circle cx="310.6" cy="217.9" r="5" style="fill:transparent"><title>bigramas · rango 857: 4 veces</title></circle>
+<circle cx="326.8" cy="225.4" r="5" style="fill:transparent"><title>bigramas · rango 1319: 3 veces</title></circle>
+<circle cx="343.1" cy="235.9" r="5" style="fill:transparent"><title>bigramas · rango 2030: 2 veces</title></circle>
+<circle cx="359.4" cy="235.9" r="5" style="fill:transparent"><title>bigramas · rango 3125: 2 veces</title></circle>
+<circle cx="375.6" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 4809: 1 veces</title></circle>
+<circle cx="391.8" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 7400: 1 veces</title></circle>
+<circle cx="408.1" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 11388: 1 veces</title></circle>
+<circle cx="424.4" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 17526: 1 veces</title></circle>
+<path d="M498 50 H512" class="s-goldl"/>
+<text x="516" y="54" class="s-txt-2" style="font-weight:600">bigramas</text>
+<text x="516" y="65" class="s-mut">α = 0,65</text>
+<path d="M56.0,147.7 L82.1,165.4 L97.4,171.2 L108.3,181.8 L116.7,183.4 L123.5,183.4 L129.4,185.2 L134.4,185.2 L138.8,187.2 L146.4,189.2 L152.7,189.2 L158.1,191.5 L162.8,191.5 L168.9,191.5 L174.2,194.0 L180.2,196.7 L185.5,196.7 L191.1,199.8 L196.9,199.8 L202.7,199.8 L207.7,203.3 L213.4,203.3 L219.3,207.3 L224.8,207.3 L230.3,212.1 L236.2,212.1 L241.7,212.1 L247.3,217.9 L253.0,217.9 L258.6,217.9 L264.3,225.4 L270.0,225.4 L275.6,225.4 L281.2,225.4 L286.8,225.4 L292.5,235.9 L298.1,235.9 L303.7,235.9 L309.3,235.9 L315.0,235.9 L320.6,235.9 L326.2,235.9 L331.9,235.9 L337.5,254.0 L343.1,254.0 L348.8,254.0 L354.4,254.0 L360.0,254.0 L365.6,254.0 L371.3,254.0 L376.9,254.0 L382.5,254.0 L388.2,254.0 L393.8,254.0 L399.4,254.0 L405.1,254.0 L410.7,254.0 L416.3,254.0 L421.9,254.0 L427.6,254.0 L433.2,254.0 L438.8,254.0 L444.5,254.0" class="s-okl" style="stroke-width:1.8"/>
+<path d="M146.4,191.0 L334.8,240.3" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"><title>ajuste trigramas: α = 0,38, R² = 0,889 (rangos 11–1631)</title></path>
+<circle cx="56.0" cy="147.7" r="5" style="fill:transparent"><title>trigramas · rango 1: 59 veces</title></circle>
+<circle cx="108.3" cy="181.8" r="5" style="fill:transparent"><title>trigramas · rango 4: 16 veces</title></circle>
+<circle cx="129.4" cy="185.2" r="5" style="fill:transparent"><title>trigramas · rango 7: 14 veces</title></circle>
+<circle cx="146.4" cy="189.2" r="5" style="fill:transparent"><title>trigramas · rango 11: 12 veces</title></circle>
+<circle cx="162.8" cy="191.5" r="5" style="fill:transparent"><title>trigramas · rango 17: 11 veces</title></circle>
+<circle cx="180.2" cy="196.7" r="5" style="fill:transparent"><title>trigramas · rango 27: 9 veces</title></circle>
+<circle cx="196.9" cy="199.8" r="5" style="fill:transparent"><title>trigramas · rango 42: 8 veces</title></circle>
+<circle cx="213.4" cy="203.3" r="5" style="fill:transparent"><title>trigramas · rango 65: 7 veces</title></circle>
+<circle cx="230.3" cy="212.1" r="5" style="fill:transparent"><title>trigramas · rango 102: 5 veces</title></circle>
+<circle cx="247.3" cy="217.9" r="5" style="fill:transparent"><title>trigramas · rango 160: 4 veces</title></circle>
+<circle cx="264.3" cy="225.4" r="5" style="fill:transparent"><title>trigramas · rango 251: 3 veces</title></circle>
+<circle cx="281.2" cy="225.4" r="5" style="fill:transparent"><title>trigramas · rango 393: 3 veces</title></circle>
+<circle cx="298.1" cy="235.9" r="5" style="fill:transparent"><title>trigramas · rango 615: 2 veces</title></circle>
+<circle cx="315.0" cy="235.9" r="5" style="fill:transparent"><title>trigramas · rango 963: 2 veces</title></circle>
+<circle cx="331.9" cy="235.9" r="5" style="fill:transparent"><title>trigramas · rango 1507: 2 veces</title></circle>
+<circle cx="348.8" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 2359: 1 veces</title></circle>
+<circle cx="365.6" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 3693: 1 veces</title></circle>
+<circle cx="382.5" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 5780: 1 veces</title></circle>
+<circle cx="399.4" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 9047: 1 veces</title></circle>
+<circle cx="416.3" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 14161: 1 veces</title></circle>
+<circle cx="433.2" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 22166: 1 veces</title></circle>
+<path d="M498 80 H512" class="s-okl"/>
+<text x="516" y="84" class="s-txt-2" style="font-weight:600">trigramas</text>
+<text x="516" y="95" class="s-mut">α = 0,38</text>
+<path d="M498 114 H512" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"/><text x="516" y="118" class="s-mut">recta ajustada</text>
+</svg>
+      </div>
+      <figcaption>Frecuencia frente a rango (log-log) y rectas ajustadas en el tramo usado. Pasa el ratón por las curvas para ver valores.</figcaption>
+    </figure>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th></th><th class="num">Tipos distintos</th><th class="num">% con frecuencia 1</th><th class="num">Puntos ajustados</th><th class="num">α</th><th class="num">R²</th><th class="num">MSE (log₁₀²)</th></tr></thead>
+      <tbody>
+        <tr><td>Unigramas</td><td class="num">4 579</td><td class="num">52 %</td><td class="num">2 172 (rangos 11–2 182)</td><td class="num"><strong>1,039</strong></td><td class="num">0,990</td><td class="num">0,0018</td></tr>
+        <tr><td>Bigramas</td><td class="num">20 234</td><td class="num">82 %</td><td class="num">3 599 (11–3 609)</td><td class="num"><strong>0,652</strong></td><td class="num">0,965</td><td class="num">0,0026</td></tr>
+        <tr><td>Trigramas</td><td class="num">29 882</td><td class="num">95 %</td><td class="num">1 621 (11–1 631)</td><td class="num"><strong>0,378</strong></td><td class="num">0,889</td><td class="num">0,0028</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Sensibilidad a los cortes</strong> (α según cuántos rangos se quitan al principio y la frecuencia mínima):</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th></th><th class="num">min_freq = 1</th><th class="num">min_freq = 2</th><th class="num">min_freq = 3</th></tr></thead>
+      <tbody>
+        <tr><td>Unigramas (saltar 0 / 10 / 50)</td><td class="num">1,04 / 1,04 / 1,04</td><td class="num">1,03 / 1,04 / 1,05</td><td class="num">1,03 / 1,04 / 1,06</td></tr>
+        <tr><td>Bigramas</td><td class="num">0,46 / 0,46 / 0,45</td><td class="num">0,65 / 0,65 / 0,65</td><td class="num">0,68 / 0,68 / 0,69</td></tr>
+        <tr><td>Trigramas</td><td class="num">0,16 / 0,16 / 0,15</td><td class="num">0,38 / 0,38 / 0,36</td><td class="num">0,43 / 0,43 / 0,43</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Conclusiones del ejercicio 2</div><ul>
+      <li><strong>Los unigramas cumplen muy bien Zipf</strong>: α ≈ 1,04 con $R^2$ ≈ 0,99, muy cerca del valor clásico α = 1.</li>
+      <li><strong>Bigramas y trigramas también siguen una ley de potencias, con exponente menor</strong> (0,65 y 0,38): hay muchas más combinaciones distintas y la frecuencia se reparte.</li>
+      <li><strong>El ajuste empeora con n</strong> ($R^2$ 0,99 → 0,97 → 0,89): quedan menos puntos y la curva es escalonada (frecuencias 2, 3, 4… repetidas en muchos rangos).</li>
+      <li><strong>Los cortes importan</strong>: con <code>min_freq = 1</code> la meseta de frecuencia 1 hunde α en bigramas (0,46) y trigramas (0,16). Para unigramas el resultado es robusto (1,03–1,06 con cualquier corte).</li>
+    </ul></div>
+
+    <h3 id="l1-ej3">Ejercicio 3 · El mismo análisis con <em>Juvenilia</em></h3>
+    <p><code>Juvenilia.txt</code> es el volumen de Miguel Cané con un prólogo biográfico, <em>Juvenilia</em> (1882) y <em>Prosa ligera</em>: 84 269 palabras, 2,6 veces más que <em>The Time Machine</em>.</p>
+<pre data-code="Preprocesado del español">
+def preprocesar_es(texto):            # opción usada: conserva tildes, ü y ñ
+    return re.sub('[^a-záéíóúüñ]+', ' ', texto.lower())
+
+def preprocesar_es_ascii(texto):      # alternativa con Unidecode: á→a, ñ→n, y el regex del inglés
+    return re.sub('[^A-Za-z]+', ' ', unidecode(texto)).lower()
+</pre>
+    <div class="callout warn"><div class="ct">✕ No reutilices el regex del inglés tal cual</div><p><code>[^A-Za-z]+</code> trata «á» o «ñ» como no-letras: «música» → «m sica», «niño» → «ni o». Inventaría palabras y cambiaría todas las estadísticas. Hay que <strong>incluir las letras del español</strong> o <strong>quitar antes las tildes</strong> con Unidecode.</p></div>
+    <ul>
+      <li><strong>Caracteres</strong>: con tildes, el vocabulario es de <strong>35</strong> (33 letras + espacio + <code>&lt;unk&gt;</code>); con Unidecode, de 28 como el inglés. Letras propias: í 3 391, ó 2 622, á 1 573, é 1 355, ñ 874, ú 397, ü 21.</li>
+      <li><strong>Palabras más frecuentes</strong>: de (5 010), la (3 479), que (2 747), el (2 518), y (2 349), en, a, los, un, su.</li>
+      <li><strong>Bigramas</strong>: de la (779), en el (418), en la (371), a la (306), de los (274). <strong>Trigramas</strong>: de la vida (45), uno de los (33), en la que (26), en el fondo (25).</li>
+    </ul>
+    <figure class="diagram">
+      <div class="svg-scroll">
+<svg viewBox="0 0 600 300" width="600" role="img" aria-label="Ley de Zipf en Juvenilia">
+<path d="M56 194.0 H490 M56 134.0 H490 M56 74.0 H490 M56 14.0 H490 M142.8 14 V254 M229.6 14 V254 M316.4 14 V254 M403.2 14 V254 M490.0 14 V254" class="s-grid"/>
+<path d="M56 254 H490 M56 14 V254" class="s-thin"/>
+<text x="48" y="258.0" text-anchor="end" class="s-mut">10⁰</text>
+<text x="48" y="198.0" text-anchor="end" class="s-mut">10¹</text>
+<text x="48" y="138.0" text-anchor="end" class="s-mut">10²</text>
+<text x="48" y="78.0" text-anchor="end" class="s-mut">10³</text>
+<text x="48" y="18.0" text-anchor="end" class="s-mut">10⁴</text>
+<text x="56.0" y="270" text-anchor="middle" class="s-mut">10⁰</text>
+<text x="142.8" y="270" text-anchor="middle" class="s-mut">10¹</text>
+<text x="229.6" y="270" text-anchor="middle" class="s-mut">10²</text>
+<text x="316.4" y="270" text-anchor="middle" class="s-mut">10³</text>
+<text x="403.2" y="270" text-anchor="middle" class="s-mut">10⁴</text>
+<text x="490.0" y="270" text-anchor="middle" class="s-mut">10⁵</text>
+<text x="273.0" y="290" text-anchor="middle" class="s-mut">rango i (escala log)</text>
+<text x="14" y="134.0" text-anchor="middle" class="s-mut" transform="rotate(-90 14 134.0)">frecuencia n(i) (escala log)</text>
+<path d="M56.0,32.0 L82.1,41.5 L97.4,47.7 L108.3,49.9 L116.7,51.7 L123.5,52.3 L129.4,56.0 L134.4,67.4 L138.8,69.7 L142.8,76.5 L149.7,77.5 L155.5,78.1 L160.5,79.9 L165.0,88.0 L170.8,95.7 L175.8,101.7 L180.2,103.0 L185.5,107.8 L191.1,118.5 L196.0,122.7 L201.1,128.2 L207.1,132.2 L212.2,135.1 L217.2,137.6 L222.1,139.8 L227.7,142.2 L232.8,146.9 L238.0,150.1 L243.1,152.6 L248.2,155.4 L253.6,158.5 L258.6,160.6 L263.8,164.5 L269.1,167.2 L274.3,171.2 L279.5,173.5 L284.7,177.3 L289.9,180.2 L295.1,183.4 L300.3,187.2 L305.5,191.5 L310.7,194.0 L315.9,196.7 L321.1,199.8 L326.3,203.3 L331.5,207.3 L336.7,212.1 L341.9,212.1 L347.1,217.9 L352.3,217.9 L357.5,225.4 L362.7,225.4 L367.9,235.9 L373.1,235.9 L378.3,235.9 L383.5,254.0 L388.7,254.0 L393.9,254.0 L399.1,254.0 L404.2,254.0 L409.4,254.0 L414.6,254.0" class="s-acc" style="stroke-width:1.8"/>
+<path d="M146.4,88.5 L382.7,240.7" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"><title>ajuste unigramas: α = 0,93, R² = 0,988 (rangos 11–5804)</title></path>
+<circle cx="56.0" cy="32.0" r="5" style="fill:transparent"><title>unigramas · rango 1: 5010 veces</title></circle>
+<circle cx="108.3" cy="49.9" r="5" style="fill:transparent"><title>unigramas · rango 4: 2518 veces</title></circle>
+<circle cx="129.4" cy="56.0" r="5" style="fill:transparent"><title>unigramas · rango 7: 1996 veces</title></circle>
+<circle cx="142.8" cy="76.5" r="5" style="fill:transparent"><title>unigramas · rango 10: 907 veces</title></circle>
+<circle cx="160.5" cy="79.9" r="5" style="fill:transparent"><title>unigramas · rango 16: 797 veces</title></circle>
+<circle cx="175.8" cy="101.7" r="5" style="fill:transparent"><title>unigramas · rango 24: 345 veces</title></circle>
+<circle cx="191.1" cy="118.5" r="5" style="fill:transparent"><title>unigramas · rango 36: 181 veces</title></circle>
+<circle cx="207.1" cy="132.2" r="5" style="fill:transparent"><title>unigramas · rango 55: 107 veces</title></circle>
+<circle cx="222.1" cy="139.8" r="5" style="fill:transparent"><title>unigramas · rango 82: 80 veces</title></circle>
+<circle cx="238.0" cy="150.1" r="5" style="fill:transparent"><title>unigramas · rango 125: 54 veces</title></circle>
+<circle cx="253.6" cy="158.5" r="5" style="fill:transparent"><title>unigramas · rango 189: 39 veces</title></circle>
+<circle cx="269.1" cy="167.2" r="5" style="fill:transparent"><title>unigramas · rango 285: 28 veces</title></circle>
+<circle cx="284.7" cy="177.3" r="5" style="fill:transparent"><title>unigramas · rango 431: 19 veces</title></circle>
+<circle cx="300.3" cy="187.2" r="5" style="fill:transparent"><title>unigramas · rango 652: 13 veces</title></circle>
+<circle cx="315.9" cy="196.7" r="5" style="fill:transparent"><title>unigramas · rango 986: 9 veces</title></circle>
+<circle cx="331.5" cy="207.3" r="5" style="fill:transparent"><title>unigramas · rango 1492: 6 veces</title></circle>
+<circle cx="347.1" cy="217.9" r="5" style="fill:transparent"><title>unigramas · rango 2256: 4 veces</title></circle>
+<circle cx="362.7" cy="225.4" r="5" style="fill:transparent"><title>unigramas · rango 3412: 3 veces</title></circle>
+<circle cx="378.3" cy="235.9" r="5" style="fill:transparent"><title>unigramas · rango 5160: 2 veces</title></circle>
+<circle cx="393.9" cy="254.0" r="5" style="fill:transparent"><title>unigramas · rango 7804: 1 veces</title></circle>
+<circle cx="409.4" cy="254.0" r="5" style="fill:transparent"><title>unigramas · rango 11802: 1 veces</title></circle>
+<path d="M498 20 H512" class="s-acc"/>
+<text x="516" y="24" class="s-txt-2" style="font-weight:600">unigramas</text>
+<text x="516" y="35" class="s-mut">α = 0,93</text>
+<path d="M56.0,80.5 L82.1,96.7 L97.4,99.8 L108.3,104.9 L116.7,107.7 L123.5,113.6 L129.4,119.6 L134.4,119.6 L138.8,121.1 L146.4,125.0 L152.7,129.2 L158.1,131.3 L162.8,131.8 L168.9,133.5 L175.8,135.6 L181.6,140.8 L186.6,142.6 L193.1,145.2 L198.7,148.2 L204.9,151.5 L211.0,154.8 L216.7,160.6 L222.6,162.1 L228.5,163.7 L234.5,167.2 L240.6,170.1 L246.4,172.3 L252.4,175.9 L258.5,178.7 L264.3,180.2 L270.3,183.4 L276.3,185.2 L282.2,189.2 L288.2,191.5 L294.1,194.0 L300.0,196.7 L306.0,199.8 L312.0,203.3 L317.9,207.3 L323.9,207.3 L329.8,212.1 L335.8,217.9 L341.7,217.9 L347.7,217.9 L353.6,225.4 L359.6,225.4 L365.5,225.4 L371.5,235.9 L377.4,235.9 L383.4,235.9 L389.3,235.9 L395.3,235.9 L401.2,254.0 L407.2,254.0 L413.1,254.0 L419.1,254.0 L425.0,254.0 L431.0,254.0 L437.0,254.0 L442.9,254.0 L448.9,254.0 L454.8,254.0 L460.8,254.0 L466.7,254.0" class="s-goldl" style="stroke-width:1.8"/>
+<path d="M146.4,131.2 L397.3,241.5" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"><title>ajuste bigramas: α = 0,64, R² = 0,965 (rangos 11–8553)</title></path>
+<circle cx="56.0" cy="80.5" r="5" style="fill:transparent"><title>bigramas · rango 1: 779 veces</title></circle>
+<circle cx="108.3" cy="104.9" r="5" style="fill:transparent"><title>bigramas · rango 4: 306 veces</title></circle>
+<circle cx="129.4" cy="119.6" r="5" style="fill:transparent"><title>bigramas · rango 7: 174 veces</title></circle>
+<circle cx="146.4" cy="125.0" r="5" style="fill:transparent"><title>bigramas · rango 11: 141 veces</title></circle>
+<circle cx="162.8" cy="131.8" r="5" style="fill:transparent"><title>bigramas · rango 17: 109 veces</title></circle>
+<circle cx="181.6" cy="140.8" r="5" style="fill:transparent"><title>bigramas · rango 28: 77 veces</title></circle>
+<circle cx="198.7" cy="148.2" r="5" style="fill:transparent"><title>bigramas · rango 44: 58 veces</title></circle>
+<circle cx="216.7" cy="160.6" r="5" style="fill:transparent"><title>bigramas · rango 71: 36 veces</title></circle>
+<circle cx="234.5" cy="167.2" r="5" style="fill:transparent"><title>bigramas · rango 114: 28 veces</title></circle>
+<circle cx="252.4" cy="175.9" r="5" style="fill:transparent"><title>bigramas · rango 183: 20 veces</title></circle>
+<circle cx="270.3" cy="183.4" r="5" style="fill:transparent"><title>bigramas · rango 294: 15 veces</title></circle>
+<circle cx="288.2" cy="191.5" r="5" style="fill:transparent"><title>bigramas · rango 473: 11 veces</title></circle>
+<circle cx="306.0" cy="199.8" r="5" style="fill:transparent"><title>bigramas · rango 759: 8 veces</title></circle>
+<circle cx="323.9" cy="207.3" r="5" style="fill:transparent"><title>bigramas · rango 1219: 6 veces</title></circle>
+<circle cx="341.7" cy="217.9" r="5" style="fill:transparent"><title>bigramas · rango 1957: 4 veces</title></circle>
+<circle cx="359.6" cy="225.4" r="5" style="fill:transparent"><title>bigramas · rango 3143: 3 veces</title></circle>
+<circle cx="377.4" cy="235.9" r="5" style="fill:transparent"><title>bigramas · rango 5048: 2 veces</title></circle>
+<circle cx="395.3" cy="235.9" r="5" style="fill:transparent"><title>bigramas · rango 8106: 2 veces</title></circle>
+<circle cx="413.1" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 13018: 1 veces</title></circle>
+<circle cx="431.0" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 20906: 1 veces</title></circle>
+<circle cx="448.9" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 33573: 1 veces</title></circle>
+<circle cx="466.7" cy="254.0" r="5" style="fill:transparent"><title>bigramas · rango 53916: 1 veces</title></circle>
+<path d="M498 50 H512" class="s-goldl"/>
+<text x="516" y="54" class="s-txt-2" style="font-weight:600">bigramas</text>
+<text x="516" y="65" class="s-mut">α = 0,64</text>
+<path d="M56.0,154.8 L82.1,162.9 L97.4,169.1 L108.3,170.1 L116.7,174.7 L123.5,174.7 L129.4,177.3 L134.4,178.7 L142.8,178.7 L149.7,180.2 L155.5,181.8 L160.5,181.8 L167.0,183.4 L172.5,185.2 L178.8,187.2 L185.5,189.2 L191.1,191.5 L197.8,194.0 L203.5,194.0 L209.7,196.7 L216.2,196.7 L222.1,199.8 L228.5,199.8 L234.5,203.3 L240.6,203.3 L246.8,207.3 L253.0,207.3 L259.2,212.1 L265.3,212.1 L271.4,217.9 L277.6,217.9 L283.8,217.9 L289.9,217.9 L296.1,225.4 L302.2,225.4 L308.4,225.4 L314.5,225.4 L320.7,235.9 L326.8,235.9 L333.0,235.9 L339.1,235.9 L345.3,235.9 L351.5,235.9 L357.6,235.9 L363.8,254.0 L369.9,254.0 L376.1,254.0 L382.2,254.0 L388.4,254.0 L394.5,254.0 L400.7,254.0 L406.9,254.0 L413.0,254.0 L419.2,254.0 L425.3,254.0 L431.5,254.0 L437.6,254.0 L443.8,254.0 L449.9,254.0 L456.1,254.0 L462.2,254.0 L468.4,254.0 L474.6,254.0 L480.7,254.0" class="s-okl" style="stroke-width:1.8"/>
+<path d="M146.4,183.8 L363.3,240.3" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"><title>ajuste trigramas: α = 0,38, R² = 0,900 (rangos 11–3474)</title></path>
+<circle cx="56.0" cy="154.8" r="5" style="fill:transparent"><title>trigramas · rango 1: 45 veces</title></circle>
+<circle cx="108.3" cy="170.1" r="5" style="fill:transparent"><title>trigramas · rango 4: 25 veces</title></circle>
+<circle cx="129.4" cy="177.3" r="5" style="fill:transparent"><title>trigramas · rango 7: 19 veces</title></circle>
+<circle cx="149.7" cy="180.2" r="5" style="fill:transparent"><title>trigramas · rango 12: 17 veces</title></circle>
+<circle cx="167.0" cy="183.4" r="5" style="fill:transparent"><title>trigramas · rango 19: 15 veces</title></circle>
+<circle cx="185.5" cy="189.2" r="5" style="fill:transparent"><title>trigramas · rango 31: 12 veces</title></circle>
+<circle cx="203.5" cy="194.0" r="5" style="fill:transparent"><title>trigramas · rango 50: 10 veces</title></circle>
+<circle cx="222.1" cy="199.8" r="5" style="fill:transparent"><title>trigramas · rango 82: 8 veces</title></circle>
+<circle cx="240.6" cy="203.3" r="5" style="fill:transparent"><title>trigramas · rango 134: 7 veces</title></circle>
+<circle cx="259.2" cy="212.1" r="5" style="fill:transparent"><title>trigramas · rango 219: 5 veces</title></circle>
+<circle cx="277.6" cy="217.9" r="5" style="fill:transparent"><title>trigramas · rango 357: 4 veces</title></circle>
+<circle cx="296.1" cy="225.4" r="5" style="fill:transparent"><title>trigramas · rango 583: 3 veces</title></circle>
+<circle cx="314.5" cy="225.4" r="5" style="fill:transparent"><title>trigramas · rango 951: 3 veces</title></circle>
+<circle cx="333.0" cy="235.9" r="5" style="fill:transparent"><title>trigramas · rango 1553: 2 veces</title></circle>
+<circle cx="351.5" cy="235.9" r="5" style="fill:transparent"><title>trigramas · rango 2534: 2 veces</title></circle>
+<circle cx="369.9" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 4136: 1 veces</title></circle>
+<circle cx="388.4" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 6750: 1 veces</title></circle>
+<circle cx="406.9" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 11017: 1 veces</title></circle>
+<circle cx="425.3" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 17980: 1 veces</title></circle>
+<circle cx="443.8" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 29345: 1 veces</title></circle>
+<circle cx="462.2" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 47893: 1 veces</title></circle>
+<circle cx="480.7" cy="254.0" r="5" style="fill:transparent"><title>trigramas · rango 78165: 1 veces</title></circle>
+<path d="M498 80 H512" class="s-okl"/>
+<text x="516" y="84" class="s-txt-2" style="font-weight:600">trigramas</text>
+<text x="516" y="95" class="s-mut">α = 0,38</text>
+<path d="M498 114 H512" class="s-thin s-dash" style="stroke:var(--ink-2);stroke-width:1.4"/><text x="516" y="118" class="s-mut">recta ajustada</text>
+</svg>
+      </div>
+      <figcaption>Juvenilia: frecuencia frente a rango (log-log) y rectas ajustadas (rangos &gt; 10, frecuencia ≥ 2).</figcaption>
+    </figure>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Juvenilia</th><th class="num">Tipos</th><th class="num">% frecuencia 1</th><th class="num">α (tildes)</th><th class="num">R²</th><th class="num">MSE</th><th class="num">α (Unidecode)</th></tr></thead>
+      <tbody>
+        <tr><td>Unigramas</td><td class="num">13 547</td><td class="num">57 %</td><td class="num"><strong>0,932</strong></td><td class="num">0,988</td><td class="num">0,0018</td><td class="num">0,932</td></tr>
+        <tr><td>Bigramas</td><td class="num">53 916</td><td class="num">84 %</td><td class="num"><strong>0,636</strong></td><td class="num">0,965</td><td class="num">0,0027</td><td class="num">0,638</td></tr>
+        <tr><td>Trigramas</td><td class="num">78 165</td><td class="num">96 %</td><td class="num"><strong>0,377</strong></td><td class="num">0,900</td><td class="num">0,0027</td><td class="num">0,377</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Conclusiones del ejercicio 3</div><ul>
+      <li><strong>El español también cumple Zipf</strong>: α ≈ 0,93 en unigramas ($R^2$ 0,99), 0,64 en bigramas y 0,38 en trigramas. Mismo patrón que el inglés.</li>
+      <li><strong>Tildes o Unidecode apenas cambian los exponentes</strong>, pero sí el vocabulario: quitar tildes fusiona 165 formas distintas («él»/«el», «qué»/«que», «más»/«mas»).</li>
+    </ul></div>
+
+    <h3 id="l1-ej4">Ejercicio 4 · Comparación entre idiomas</h3>
+    <figure class="diagram">
+      <div class="svg-scroll">
+<svg viewBox="0 0 640 250" width="640" role="img" aria-label="Frecuencia de letras en inglés y español">
+<path d="M46 162.9 H624 M46 109.7 H624 M46 56.6 H624" class="s-grid"/>
+<text x="38" y="220.0" text-anchor="end" class="s-mut">0 %</text>
+<text x="38" y="166.9" text-anchor="end" class="s-mut">4 %</text>
+<text x="38" y="113.7" text-anchor="end" class="s-mut">8 %</text>
+<text x="38" y="60.6" text-anchor="end" class="s-mut">12 %</text>
+<path d="M49.0,216 V50.5 Q49.0,47.5 52.0,47.5 H59.1 Q62.1,47.5 62.1,50.5 V216 Z" style="fill:var(--accent)"><title>inglés · «e»: 12,7 %</title></path>
+<path d="M64.1,216 V50.0 Q64.1,47.0 67.1,47.0 H74.1 Q77.1,47.0 77.1,50.0 V216 Z" style="fill:var(--gold)"><title>español · «e»: 12,7 %</title></path>
+<text x="64.1" y="232" text-anchor="middle" class="s-mono">e</text>
+<path d="M85.1,216 V108.4 Q85.1,105.4 88.1,105.4 H95.2 Q98.2,105.4 98.2,108.4 V216 Z" style="fill:var(--accent)"><title>inglés · «a»: 8,3 %</title></path>
+<path d="M100.2,216 V54.8 Q100.2,51.8 103.2,51.8 H110.2 Q113.2,51.8 113.2,54.8 V216 Z" style="fill:var(--gold)"><title>español · «a»: 12,4 %</title></path>
+<text x="100.2" y="232" text-anchor="middle" class="s-mono">a</text>
+<path d="M121.2,216 V126.8 Q121.2,123.8 124.2,123.8 H131.3 Q134.3,123.8 134.3,126.8 V216 Z" style="fill:var(--accent)"><title>inglés · «o»: 6,9 %</title></path>
+<path d="M136.3,216 V103.0 Q136.3,100.0 139.3,100.0 H146.4 Q149.4,100.0 149.4,103.0 V216 Z" style="fill:var(--gold)"><title>español · «o»: 8,7 %</title></path>
+<text x="136.3" y="232" text-anchor="middle" class="s-mono">o</text>
+<path d="M157.4,216 V125.3 Q157.4,122.3 160.4,122.3 H167.4 Q170.4,122.3 170.4,125.3 V216 Z" style="fill:var(--accent)"><title>inglés · «n»: 7,1 %</title></path>
+<path d="M172.4,216 V126.7 Q172.4,123.7 175.4,123.7 H182.5 Q185.5,123.7 185.5,126.7 V216 Z" style="fill:var(--gold)"><title>español · «n»: 6,9 %</title></path>
+<text x="172.4" y="232" text-anchor="middle" class="s-mono">n</text>
+<path d="M193.5,216 V138.8 Q193.5,135.8 196.5,135.8 H203.6 Q206.6,135.8 206.6,138.8 V216 Z" style="fill:var(--accent)"><title>inglés · «s»: 6,0 %</title></path>
+<path d="M208.6,216 V122.2 Q208.6,119.2 211.6,119.2 H218.6 Q221.6,119.2 221.6,122.2 V216 Z" style="fill:var(--gold)"><title>español · «s»: 7,3 %</title></path>
+<text x="208.6" y="232" text-anchor="middle" class="s-mono">s</text>
+<path d="M229.6,216 V146.5 Q229.6,143.5 232.6,143.5 H239.7 Q242.7,143.5 242.7,146.5 V216 Z" style="fill:var(--accent)"><title>inglés · «r»: 5,5 %</title></path>
+<path d="M244.7,216 V131.0 Q244.7,128.0 247.7,128.0 H254.8 Q257.8,128.0 257.8,131.0 V216 Z" style="fill:var(--gold)"><title>español · «r»: 6,6 %</title></path>
+<text x="244.7" y="232" text-anchor="middle" class="s-mono">r</text>
+<path d="M265.8,216 V123.2 Q265.8,120.2 268.8,120.2 H275.8 Q278.8,120.2 278.8,123.2 V216 Z" style="fill:var(--accent)"><title>inglés · «i»: 7,2 %</title></path>
+<path d="M280.8,216 V140.7 Q280.8,137.7 283.8,137.7 H290.9 Q293.9,137.7 293.9,140.7 V216 Z" style="fill:var(--gold)"><title>español · «i»: 5,9 %</title></path>
+<text x="280.8" y="232" text-anchor="middle" class="s-mono">i</text>
+<path d="M301.9,216 V91.3 Q301.9,88.3 304.9,88.3 H311.9 Q314.9,88.3 314.9,91.3 V216 Z" style="fill:var(--accent)"><title>inglés · «t»: 9,6 %</title></path>
+<path d="M316.9,216 V164.2 Q316.9,161.2 319.9,161.2 H327.0 Q330.0,161.2 330.0,164.2 V216 Z" style="fill:var(--gold)"><title>español · «t»: 4,1 %</title></path>
+<text x="316.9" y="232" text-anchor="middle" class="s-mono">t</text>
+<path d="M338.0,216 V160.9 Q338.0,157.9 341.0,157.9 H348.1 Q351.1,157.9 351.1,160.9 V216 Z" style="fill:var(--accent)"><title>inglés · «l»: 4,4 %</title></path>
+<path d="M353.1,216 V142.9 Q353.1,139.9 356.1,139.9 H363.1 Q366.1,139.9 366.1,142.9 V216 Z" style="fill:var(--gold)"><title>español · «l»: 5,7 %</title></path>
+<text x="353.1" y="232" text-anchor="middle" class="s-mono">l</text>
+<path d="M374.1,216 V159.1 Q374.1,156.1 377.1,156.1 H384.2 Q387.2,156.1 387.2,159.1 V216 Z" style="fill:var(--accent)"><title>inglés · «d»: 4,5 %</title></path>
+<path d="M389.2,216 V155.1 Q389.2,152.1 392.2,152.1 H399.2 Q402.2,152.1 402.2,155.1 V216 Z" style="fill:var(--gold)"><title>español · «d»: 4,8 %</title></path>
+<text x="389.2" y="232" text-anchor="middle" class="s-mono">d</text>
+<path d="M410.2,216 V183.1 Q410.2,180.1 413.2,180.1 H420.3 Q423.3,180.1 423.3,183.1 V216 Z" style="fill:var(--accent)"><title>inglés · «u»: 2,7 %</title></path>
+<path d="M425.3,216 V164.2 Q425.3,161.2 428.3,161.2 H435.4 Q438.4,161.2 438.4,164.2 V216 Z" style="fill:var(--gold)"><title>español · «u»: 4,1 %</title></path>
+<text x="425.3" y="232" text-anchor="middle" class="s-mono">u</text>
+<path d="M446.4,216 V186.7 Q446.4,183.7 449.4,183.7 H456.4 Q459.4,183.7 459.4,186.7 V216 Z" style="fill:var(--accent)"><title>inglés · «c»: 2,4 %</title></path>
+<path d="M461.4,216 V163.5 Q461.4,160.5 464.4,160.5 H471.5 Q474.5,160.5 474.5,163.5 V216 Z" style="fill:var(--gold)"><title>español · «c»: 4,2 %</title></path>
+<text x="461.4" y="232" text-anchor="middle" class="s-mono">c</text>
+<path d="M482.5,216 V180.8 Q482.5,177.8 485.5,177.8 H492.6 Q495.6,177.8 495.6,180.8 V216 Z" style="fill:var(--accent)"><title>inglés · «m»: 2,9 %</title></path>
+<path d="M497.6,216 V180.4 Q497.6,177.4 500.6,177.4 H507.6 Q510.6,177.4 510.6,180.4 V216 Z" style="fill:var(--gold)"><title>español · «m»: 2,9 %</title></path>
+<text x="497.6" y="232" text-anchor="middle" class="s-mono">m</text>
+<path d="M518.6,216 V196.1 Q518.6,193.1 521.6,193.1 H528.7 Q531.7,193.1 531.7,196.1 V216 Z" style="fill:var(--accent)"><title>inglés · «p»: 1,7 %</title></path>
+<path d="M533.7,216 V185.2 Q533.7,182.2 536.7,182.2 H543.8 Q546.8,182.2 546.8,185.2 V216 Z" style="fill:var(--gold)"><title>español · «p»: 2,5 %</title></path>
+<text x="533.7" y="232" text-anchor="middle" class="s-mono">p</text>
+<path d="M554.8,216 V141.0 Q554.8,138.0 557.8,138.0 H564.8 Q567.8,138.0 567.8,141.0 V216 Z" style="fill:var(--accent)"><title>inglés · «h»: 5,9 %</title></path>
+<path d="M569.8,216 V205.8 Q569.8,202.8 572.8,202.8 H579.9 Q582.9,202.8 582.9,205.8 V216 Z" style="fill:var(--gold)"><title>español · «h»: 1,0 %</title></path>
+<text x="569.8" y="232" text-anchor="middle" class="s-mono">h</text>
+<path d="M590.9,216 V201.1 Q590.9,198.1 593.9,198.1 H600.9 Q603.9,198.1 603.9,201.1 V216 Z" style="fill:var(--accent)"><title>inglés · «b»: 1,3 %</title></path>
+<path d="M605.9,216 V197.0 Q605.9,194.0 608.9,194.0 H616.0 Q619.0,194.0 619.0,197.0 V216 Z" style="fill:var(--gold)"><title>español · «b»: 1,7 %</title></path>
+<text x="605.9" y="232" text-anchor="middle" class="s-mono">b</text>
+<path d="M46 216 H624" class="s-thin"/>
+<rect x="474" y="6" width="10" height="10" rx="2" style="fill:var(--accent)"/><text x="489" y="15" class="s-txt-2">inglés</text>
+<rect x="544" y="6" width="10" height="10" rx="2" style="fill:var(--gold)"/><text x="559" y="15" class="s-txt-2">español</text>
+</svg>
+      </div>
+      <figcaption>Porcentaje de cada letra (sin contar espacios) en los dos libros.</figcaption>
+    </figure>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th></th><th>Inglés: corpus grandes</th><th><em>The Time Machine</em></th><th>Español: corpus grandes</th><th><em>Juvenilia</em></th></tr></thead>
+      <tbody>
+        <tr><td><strong>Letras más frecuentes</strong></td><td>e t a o i n s h r</td><td>e t a i n o s h r</td><td>e a o s r n i d l</td><td>e a o s n r i l d</td></tr>
+        <tr><td><strong>Palabras más frecuentes</strong></td><td>the, be, to, of, and, a, in, that… (Oxford English Corpus)</td><td>the, i, and, of, a, to, was, in, that, my</td><td>de, la, que, el, en, y, a, los, se, del… (CREA, RAE)</td><td>de, la, que, el, y, en, a, los, un, su</td></tr>
+        <tr><td><strong>Palabras / tipos</strong></td><td>—</td><td>32 775 / 4 579</td><td>—</td><td>84 269 / 13 547</td></tr>
+        <tr><td><strong>Longitud media de palabra</strong></td><td>≈ 4,7</td><td>4,3</td><td>—</td><td>4,7</td></tr>
+        <tr><td><strong>α unigramas</strong></td><td>≈ 1</td><td>1,04</td><td>≈ 1</td><td>0,93</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>¿Y si los corpus tuvieran el mismo tamaño?</strong> Se ajusta Zipf en fragmentos de <em>Juvenilia</em> con las mismas 32 775 palabras que <em>The Time Machine</em>, y también con un ajuste <strong>por intervalos</strong> (media de los puntos en 20 intervalos de igual anchura en $\log i$), que evita que la cola, donde se acumulan la mayoría de los puntos, domine la recta:</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Corpus</th><th class="num">Tipos</th><th class="num">α uni (MCO)</th><th class="num">α uni (intervalos)</th><th class="num">α bi (MCO)</th><th class="num">α tri (MCO)</th></tr></thead>
+      <tbody>
+        <tr><td><em>The Time Machine</em> (32 775)</td><td class="num">4 579</td><td class="num">1,039</td><td class="num">1,010</td><td class="num">0,652</td><td class="num">0,378</td></tr>
+        <tr><td><em>Juvenilia</em> completo (84 269)</td><td class="num">13 547</td><td class="num">0,932</td><td class="num">0,982</td><td class="num">0,636</td><td class="num">0,377</td></tr>
+        <tr><td><em>Juvenilia</em>, primeras 32 775</td><td class="num">7 545</td><td class="num">0,858</td><td class="num">0,964</td><td class="num">0,574</td><td class="num">0,300</td></tr>
+        <tr><td><em>Juvenilia</em>, central 32 775</td><td class="num">7 298</td><td class="num">0,868</td><td class="num">0,959</td><td class="num">0,583</td><td class="num">0,304</td></tr>
+        <tr><td><em>Juvenilia</em>, últimas 32 775</td><td class="num">6 962</td><td class="num">0,899</td><td class="num">0,974</td><td class="num">0,590</td><td class="num">0,319</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Conclusiones del ejercicio 4</div>
+      <p><strong>Caracteres.</strong> La «e» es la letra más frecuente en los dos idiomas (≈ 12,7 % en ambos libros). El inglés usa mucho la «t» (<em>the, that, it</em>) y la «h»; el español, la «a» y la «o» (terminaciones de género <em>-a/-o/-as/-os</em>) y la «s» (plurales). Los órdenes coinciden casi exactamente con los de corpus grandes: con pocas letras que se repiten miles de veces, un libro basta.</p>
+      <p><strong>Palabras.</strong> Dominan las <em>stop words</em>, como en los grandes corpus. En inglés aparecen «i» (2.º) y «my» (10.º) porque la novela está narrada en <strong>primera persona</strong>: un solo libro refleja el estilo de su autor. El español tiene <strong>más palabras distintas</strong> con el mismo número de palabras (≈ 7 000–7 500 frente a 4 579), por su <strong>morfología más rica</strong> (conjugaciones, género y número).</p>
+      <p><strong>Exponentes.</strong> Los dos idiomas cumplen Zipf con α cerca de 1 en unigramas. El del español es <strong>algo menor</strong> (cola más larga y plana), coherente con su mayor variedad de formas. Pero la magnitud de la diferencia <strong>depende del método</strong>: con el mismo tamaño y MCO sobre todos los puntos crece (1,04 frente a 0,86–0,90); con el ajuste por intervalos casi desaparece (1,01 frente a 0,96–0,97). Bigramas y trigramas dan exponentes casi iguales en ambos idiomas con los corpus completos.</p>
+      <p><strong>Limitaciones.</strong> Con 30 000–85 000 palabras, más de la mitad del vocabulario aparece una sola vez: la cola es poco fiable y α depende de los cortes, sobre todo en trigramas. Un único autor y género no representan un idioma. Comparar exponentes exige el mismo tamaño de corpus y el mismo método de ajuste.</p>
+    </div>
+
+    <h3 id="l1-ej5">Ejercicio 5 · One-hot, TF-IDF y perplejidad</h3>
+<pre data-code="One-hot con PyTorch">
+vocab_hello = {'h': 0, 'e': 1, 'l': 2, 'o': 3}
+indices_hello = torch.tensor([vocab_hello[c] for c in 'hello'])   # [0, 1, 2, 2, 3]
+F.one_hot(indices_hello, num_classes=4)                           # matriz 5 × 4 de la teoría
+F.one_hot(torch.tensor(corpus[:10]), num_classes=28).shape        # (10, 28) en The Time Machine
+</pre>
+    <p class="code-note">Con palabras en lugar de caracteres, cada vector tendría 4 580 componentes, todas a 0 salvo una. El cuaderno también comprueba la errata del BoW («t» aparece 3 veces) y reproduce la tabla TF-IDF y el ejemplo de perplejidad de la teoría (PP = 2,15 y 6).</p>
+    <p><strong>Perplejidad en un caso real.</strong> Se entrenan modelos de <strong>n-gramas de caracteres</strong> contando: la probabilidad del siguiente carácter dados los $n-1$ anteriores, $P(c_t\mid c_{t-n+1},\dots,c_{t-1})$, es su frecuencia relativa con <strong>suavizado de Laplace</strong> (+1 a cada recuento, para no dar probabilidad 0 a lo no visto). Se entrena con el primer 90 % del libro y se mide la perplejidad en el 10 % final.</p>
+<pre data-code="Perplejidad de un modelo de n-gramas de caracteres">
+for i in range(n - 1, len(train)):                     # contar n-gramas y sus contextos
+    cuentas_ngrama[train[i - n + 1:i + 1]] += 1
+    cuentas_contexto[train[i - n + 1:i]] += 1
+log_p = [math.log((cuentas_ngrama[test[i - n + 1:i + 1]] + 1) /
+                  (cuentas_contexto[test[i - n + 1:i]] + len(alfabeto)))
+         for i in range(n - 1, len(test))]
+pp = math.exp(-np.mean(log_p))                         # exp(entropía cruzada)
+</pre>
+    <figure class="diagram">
+      <div class="svg-scroll">
+<svg viewBox="0 0 600 270" width="600" role="img" aria-label="Perplejidad de modelos de n-gramas de caracteres">
+<path d="M56 194.0 H450 M56 164.0 H450 M56 134.0 H450 M56 104.0 H450 M56 74.0 H450 M56 44.0 H450 M56 14.0 H450" class="s-grid"/>
+<path d="M56 224 H450" class="s-thin"/>
+<text x="48" y="228.0" text-anchor="end" class="s-mut">4</text>
+<text x="48" y="198.0" text-anchor="end" class="s-mut">6</text>
+<text x="48" y="168.0" text-anchor="end" class="s-mut">8</text>
+<text x="48" y="138.0" text-anchor="end" class="s-mut">10</text>
+<text x="48" y="108.0" text-anchor="end" class="s-mut">12</text>
+<text x="48" y="78.0" text-anchor="end" class="s-mut">14</text>
+<text x="48" y="48.0" text-anchor="end" class="s-mut">16</text>
+<text x="48" y="18.0" text-anchor="end" class="s-mut">18</text>
+<text x="56.0" y="240" text-anchor="middle" class="s-mut">1</text>
+<text x="134.8" y="240" text-anchor="middle" class="s-mut">2</text>
+<text x="213.6" y="240" text-anchor="middle" class="s-mut">3</text>
+<text x="292.4" y="240" text-anchor="middle" class="s-mut">4</text>
+<text x="371.2" y="240" text-anchor="middle" class="s-mut">5</text>
+<text x="450.0" y="240" text-anchor="middle" class="s-mut">6</text>
+<text x="253.0" y="260" text-anchor="middle" class="s-mut">n (caracteres de la ventana del n-grama)</text>
+<text x="14" y="119.0" text-anchor="middle" class="s-mut" transform="rotate(-90 14 119.0)">perplejidad en test</text>
+<path d="M56.0,33.1 L134.8,139.8 L213.6,186.3 L292.4,202.9 L371.2,191.2 L450.0,160.6" class="s-acc"/>
+<circle cx="56.0" cy="33.1" r="4.5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"><title>inglés · n = 1: PP = 16,73</title></circle>
+<circle cx="134.8" cy="139.8" r="4.5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"><title>inglés · n = 2: PP = 9,61</title></circle>
+<circle cx="213.6" cy="186.3" r="4.5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"><title>inglés · n = 3: PP = 6,51</title></circle>
+<circle cx="292.4" cy="202.9" r="4.5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"><title>inglés · n = 4: PP = 5,41</title></circle>
+<circle cx="371.2" cy="191.2" r="4.5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"><title>inglés · n = 5: PP = 6,19</title></circle>
+<circle cx="450.0" cy="160.6" r="4.5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"><title>inglés · n = 6: PP = 8,22</title></circle>
+<text x="458" y="157.6" class="s-txt-2" style="font-weight:600">inglés</text>
+<path d="M56.0,28.7 L134.8,142.4 L213.6,183.0 L292.4,201.9 L371.2,196.8 L450.0,169.7" class="s-goldl"/>
+<circle cx="56.0" cy="28.7" r="4.5" style="fill:var(--gold);stroke:var(--surface);stroke-width:2"><title>español (tildes) · n = 1: PP = 17,02</title></circle>
+<circle cx="134.8" cy="142.4" r="4.5" style="fill:var(--gold);stroke:var(--surface);stroke-width:2"><title>español (tildes) · n = 2: PP = 9,44</title></circle>
+<circle cx="213.6" cy="183.0" r="4.5" style="fill:var(--gold);stroke:var(--surface);stroke-width:2"><title>español (tildes) · n = 3: PP = 6,74</title></circle>
+<circle cx="292.4" cy="201.9" r="4.5" style="fill:var(--gold);stroke:var(--surface);stroke-width:2"><title>español (tildes) · n = 4: PP = 5,48</title></circle>
+<circle cx="371.2" cy="196.8" r="4.5" style="fill:var(--gold);stroke:var(--surface);stroke-width:2"><title>español (tildes) · n = 5: PP = 5,81</title></circle>
+<circle cx="450.0" cy="169.7" r="4.5" style="fill:var(--gold);stroke:var(--surface);stroke-width:2"><title>español (tildes) · n = 6: PP = 7,62</title></circle>
+<text x="458" y="175.7" class="s-txt-2" style="font-weight:600">español (tildes)</text>
+<path d="M56.0,46.7 L134.8,149.8 L213.6,186.1 L292.4,205.8 L371.2,205.7 L450.0,186.5" class="s-okl"/>
+<circle cx="56.0" cy="46.7" r="4.5" style="fill:var(--ok);stroke:var(--surface);stroke-width:2"><title>español (Unidecode) · n = 1: PP = 15,82</title></circle>
+<circle cx="134.8" cy="149.8" r="4.5" style="fill:var(--ok);stroke:var(--surface);stroke-width:2"><title>español (Unidecode) · n = 2: PP = 8,95</title></circle>
+<circle cx="213.6" cy="186.1" r="4.5" style="fill:var(--ok);stroke:var(--surface);stroke-width:2"><title>español (Unidecode) · n = 3: PP = 6,52</title></circle>
+<circle cx="292.4" cy="205.8" r="4.5" style="fill:var(--ok);stroke:var(--surface);stroke-width:2"><title>español (Unidecode) · n = 4: PP = 5,21</title></circle>
+<circle cx="371.2" cy="205.7" r="4.5" style="fill:var(--ok);stroke:var(--surface);stroke-width:2"><title>español (Unidecode) · n = 5: PP = 5,22</title></circle>
+<circle cx="450.0" cy="186.5" r="4.5" style="fill:var(--ok);stroke:var(--surface);stroke-width:2"><title>español (Unidecode) · n = 6: PP = 6,50</title></circle>
+<text x="458" y="198.5" class="s-txt-2" style="font-weight:600">español (Unidecode)</text>
+</svg>
+      </div>
+      <figcaption>Perplejidad en test frente al tamaño del n-grama. Referencia: un modelo uniforme tendría PP = |V| = 27 (inglés y Unidecode) o 34 (con tildes).</figcaption>
+    </figure>
+    <div class="callout key"><div class="ct">◆ Conclusiones del ejercicio 5</div><ul>
+      <li><strong>One-hot</strong> es la forma más simple de dar tokens a una red: no supone relación entre tokens y su tamaño crece con el vocabulario.</li>
+      <li><strong>BoW y TF-IDF</strong> pierden el orden: útiles para buscar o clasificar documentos, no como entrada de una RNN.</li>
+      <li><strong>Perplejidad</strong>: sin contexto (n = 1) ya baja de 27 a ≈ 17, porque las letras no son equiprobables. Con 3 caracteres de contexto (n = 4) llega a ≈ 5,2–5,5. Con n = 5 deja de mejorar y con n = 6 <strong>empeora</strong>: la mayoría de los contextos largos se han visto pocas veces o nunca (otra vez la cola de Zipf) y contar no generaliza. Las redes neuronales del Lab 2 resuelven esto compartiendo parámetros.</li>
+      <li>Inglés y español tienen perplejidades parecidas a nivel de carácter.</li>
+    </ul></div>
+
+    <div class="summary-box">
+      <h4>Resumen del Lab 1</h4>
+      <div class="kpis">
+        <div class="kpi"><b>α = 1,04</b><span>Zipf unigramas en inglés (R² 0,99)</span></div>
+        <div class="kpi"><b>α = 0,93</b><span>Zipf unigramas en español</span></div>
+        <div class="kpi"><b>0,65 · 0,38</b><span>bigramas · trigramas (ambos idiomas)</span></div>
+        <div class="kpi"><b>PP ≈ 5,4</b><span>mejor modelo de n-gramas de caracteres</span></div>
+      </div>
+      <ul>
+        <li>Texto → tokens → vocabulario → índices; <code>&lt;unk&gt;</code> para lo no visto.</li>
+        <li>Zipf: recta en log-log; α ≈ 1 en palabras, menor en n-gramas. Quitar las primeras y la cola de frecuencia 1.</li>
+        <li>El preprocesado depende del idioma (tildes y ñ).</li>
+        <li>Comparar exponentes con el mismo tamaño de corpus y el mismo método.</li>
+        <li>Perplejidad = exp(entropía cruzada), entre 1 y |V|; los modelos de conteo fallan con contextos largos.</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas del cuaderno del Lab 1 (resultados, código y cálculo).</p><a class="btn btn-solid" href="../test.html#practica=L1">Test L1 →</a></div>
+  </section>
+
+  <section id="l1-chuleta">
+    <h2 class="sec" data-short="Chuleta final"><span class="n">★</span> Chuleta del Lab 1</h2>
+    <div class="tbl-wrap"><table class="tbl"><tbody>
+      <tr><th>Flujo</th><td>cargar → (limpiar) → tokenizar → vocabulario → índices</td></tr>
+      <tr><th>Token</th><td>unidad atómica: carácter (vocabulario pequeño, secuencias largas, sin OOV) · palabra (vocabulario enorme, OOV) · subpalabra (BPE: fusionar el par más frecuente)</td></tr>
+      <tr><th>Vocabulario</th><td>token → índice · <code>min_freq</code> descarta raros · <code>&lt;unk&gt;</code> para lo no visto</td></tr>
+      <tr><th>Zipf</th><td>$n_i\propto i^{-\alpha}$ · $\log n_i=-\alpha\log i+c$ · α ≈ 1 en palabras, menor en bi/trigramas</td></tr>
+      <tr><th>Perplejidad</th><td>$P(W)^{-1/n}=\exp(\text{entropía cruzada})$ · 1 = perfecto · |V| = aleatorio · menor es mejor</td></tr>
+      <tr><th>One-hot</th><td>vector de tamaño |V| con un 1 · sin semántica</td></tr>
+      <tr><th>BoW / TF-IDF</th><td>recuentos sin orden · TF = cuenta/longitud · IDF = log(N/df) · palabra en todos los documentos → 0</td></tr>
+      <tr><th>Embeddings</th><td>vectores densos con semántica · estáticos (Word2Vec, GloVe) · contextuales (BERT, GPT) · king − man + woman ≈ queen</td></tr>
+    </tbody></table></div>
+    <div class="mini-quiz"><p><strong>Simulacro del Lab 1</strong>.</p><a class="btn btn-solid" href="../test.html#tema=L1&amp;modo=examen">Simulacro L1 →</a></div>
+  </section>
+  </main>
+</div>
+<footer class="footer">
+  <div class="wrap"><span><a href="lab-0.html">← Lab 0 · Modelos autorregresivos</a></span><span><a href="../test.html#tema=L1">Ir al test del Lab 1 →</a></span></div>
+</footer>
+</body>
+</html>
