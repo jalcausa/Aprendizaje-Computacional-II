@@ -13,7 +13,8 @@
     { v: "T2", label: "Tema 2 · CNN", parcial: "1" },
     { v: "T3", label: "Tema 3 · GAN", parcial: "1" },
     { v: "L0", label: "Lab 0 · Autorregresión", parcial: "2" },
-    { v: "L1", label: "Lab 1 · Texto y Zipf", parcial: "2" }
+    { v: "L1", label: "Lab 1 · Texto y Zipf", parcial: "2" },
+    { v: "L2", label: "Lab 2 · RNN", parcial: "2" }
   ];
   const BLOQUES = [
     { v: "teoria", label: "Teoría" },
@@ -24,7 +25,8 @@
     { v: "P4", label: "P4 · Transfer" },
     { v: "P5", label: "P5 · GAN" },
     { v: "L0", label: "L0 · Cuaderno" },
-    { v: "L1", label: "L1 · Cuaderno" }
+    { v: "L1", label: "L1 · Cuaderno" },
+    { v: "L2", label: "L2 · Cuaderno" }
   ];
   const TIPOS = [
     { v: "teoria", label: "Teoría" },
