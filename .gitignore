@@ -4,3 +4,9 @@
 .ipynb_checkpoints/
 .keras/
 .torch/
+
+# GloVe (170 MB–1 GB): supera el límite de GitHub; se descarga aparte
+Parcial-2/Lab3-LSTM/lab3/data/glove.6B.*.txt
+# Copia duplicada del CSV de IMDB y datos del siguiente lab
+Parcial-2/Lab3-LSTM/lab3/data/IMDBDataset10M.csv
+Parcial-2/Lab3-LSTM/lab3/data/eng-fra.txt

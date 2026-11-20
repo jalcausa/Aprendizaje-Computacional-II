@@ -1,0 +1,1220 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lab 3 · LSTM y GRU — AC·II</title>
+<meta name="description" content="Lab 3 de Aprendizaje Computacional II (Parcial 2), teoría y cuadernos resueltos: celda LSTM (estado de celda y estado oculto, puertas de olvido, entrada y salida), número de parámetros, por qué mitiga el desvanecimiento del gradiente, GRU, LSTM apiladas y bidireccionales; tarea de copia con retardo (RNN frente a LSTM), análisis de sentimiento en IMDB con embeddings aprendidos o GloVe y predicción del siguiente carácter con LSTM y GRU.">
+<script>try{var t=localStorage.getItem("acii-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/site.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script defer src="../assets/js/site.js"></script>
+</head>
+<body>
+<div class="progress-line"></div>
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-2M7 7l3 5M7 17l3-5M7 17l3 2M14 5l3 6M14 12h3M14 19l3-6"/></svg></span> AC·II <small>Aprendizaje Computacional II</small></a>
+  <button class="icon-btn menu-toggle" type="button" aria-label="Abrir menú">☰</button>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="../index.html">Inicio</a>
+    <a href="tema-1.html">T1 · RNA</a>
+    <a href="tema-2.html">T2 · CNN</a>
+    <a href="tema-3.html">T3 · GAN</a>
+    <a href="lab-0.html">Lab 0</a>
+    <a href="lab-1.html">Lab 1</a>
+    <a href="lab-2.html">Lab 2</a>
+    <a href="lab-3.html" aria-current="page">Lab 3</a>
+    <a href="../test.html">Test</a>
+  </nav>
+  <button class="theme-toggle" type="button" aria-label="Cambiar tema"></button>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="../index.html">Inicio</a> / Parcial 2 / Lab 3</div>
+    <h1>Lab 3 · LSTM y GRU</h1>
+    <p>Cómo funciona una celda LSTM (estado de celda, estado oculto y las tres puertas), cuántos parámetros tiene, por qué mitiga el desvanecimiento del gradiente y en qué se simplifica la GRU. Con los tres cuadernos resueltos: la tarea de copia con retardo (RNN frente a LSTM), el análisis de sentimiento de reseñas de IMDB con embeddings aprendidos o GloVe y la predicción del siguiente carácter del Lab 2 con LSTM y GRU.</p>
+    <div class="pill-row">
+      <a href="#l3-arq">Teoría LSTM</a>
+      <a href="#l3-gru">GRU</a>
+      <a href="#l3a">Parte I · Copia con retardo</a>
+      <a href="#l3b">Parte II · IMDB</a>
+      <a href="#l3c">Parte III · Siguiente carácter</a>
+      <a href="../test.html#tema=L3">Test del Lab 3 ↗</a>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc" aria-label="Índice del lab">
+    <details open><summary class="overline" style="cursor:pointer;list-style:none">Contenido</summary>
+    <ol data-auto></ol>
+    </details>
+  </aside>
+
+  <main class="notes">
+  <div class="part-title" data-part="Parte I · Teoría del Lab 3"><div><span>Parte I</span><h2>Teoría del Lab 3</h2></div></div>
+
+  <!-- ============================================================ 1 -->
+  <section id="l3-intro">
+    <h2 class="sec" data-short="Motivación"><span class="n">1</span> Por qué hacía falta la LSTM</h2>
+    <p>Las RNN parecían perfectas para datos secuenciales (texto, voz, series temporales), pero al entrenarlas con secuencias de <strong>más de 8–10 pasos</strong> las redes simplemente <strong>dejaban de aprender</strong>: al propagarse hacia atrás en el tiempo, la señal de error <strong>decae exponencialmente</strong>. Es el desvanecimiento del gradiente que se vio en el Lab 2 (en el cuaderno de siguiente carácter, la RNN <em>vanilla</em> solo aprovechaba unos 5–7 caracteres de contexto).</p>
+    <p>La <strong>Long Short-Term Memory</strong> (Hochreiter y Schmidhuber, 1997) introduce la <strong>celda de memoria</strong> (<em>memory cell</em>): una unidad de cálculo que sustituye a los nodos tradicionales de la capa oculta y que está diseñada para que la información (y el gradiente) puedan atravesar muchos pasos de tiempo sin degradarse.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Fase</th><th>Años</th><th>Qué pasó</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Ignorada</strong></td><td>1997–2000</td><td>Menos de 50 citas al año: demasiado compleja para el cómputo de la época.</td></tr>
+        <tr><td><strong>Emergente</strong></td><td>2001–2010</td><td>Primeros avances en reconocimiento de voz. En 2000, Gers, Schmidhuber y Cummins añaden la <strong>puerta de olvido</strong> (la LSTM «completa» que se usa hoy).</td></tr>
+        <tr><td><strong>Revolución</strong></td><td>2011–2024</td><td>Renacimiento del <em>deep learning</em> (2012), Google Translate adopta LSTM (2015); dominan el modelado de secuencias hasta que llegan los Transformers (2017). Base de la IA moderna.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout exam"><div class="ct">★ La moraleja de las diapositivas</div><p>La investigación que supone un avance suele tardar años en encontrar la tecnología y las aplicaciones adecuadas: la LSTM se publicó en 1997 y no despegó hasta pasados más de diez años.</p></div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="l3-arq">
+    <h2 class="sec" data-short="Arquitectura LSTM"><span class="n">2</span> La arquitectura: dos estados y tres puertas</h2>
+    <p>La información fluye por <strong>dos canales</strong>:</p>
+    <div class="compare">
+      <div><h5>Estado de celda $\mathbf C_t$ (<em>cell state</em>)</h5><p>La <strong>memoria a largo plazo</strong>. Se actualiza solo con operaciones <strong>elemento a elemento</strong> (un producto por la puerta de olvido y una suma), sin multiplicarse por una matriz de pesos en cada paso. Eso evita el desvanecimiento del gradiente y permite retener información mucho tiempo.</p></div>
+      <div><h5>Estado oculto $\mathbf H_t$ (<em>hidden state</em>)</h5><p>La <strong>memoria a corto plazo</strong>: contiene información sobre la parte de la secuencia procesada hasta ahora. Es la salida de la celda en cada paso y lo que ve la capa siguiente (y la propia celda en el paso siguiente).</p></div>
+    </div>
+    <figure class="diagram">
+      <div class="svg-scroll">
+      <svg viewBox="0 0 700 330" width="700" role="img" aria-label="Celda LSTM con estado de celda arriba, estado oculto abajo y las puertas de olvido, entrada y salida">
+        <defs><marker id="ar71" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="s-accf"/></marker></defs>
+        <rect x="110" y="34" width="470" height="236" rx="16" class="s-box"/>
+        <text x="345" y="26" text-anchor="middle" class="s-mut">celda LSTM (paso t)</text>
+        <!-- cinta del estado de celda -->
+        <path d="M40 70 H650" class="s-goldl" marker-end="url(#ar71)"/>
+        <text x="40" y="60" class="s-mono">C_t−1</text><text x="620" y="60" class="s-mono">C_t</text>
+        <!-- estado oculto entrada -->
+        <path d="M40 240 H160" class="s-acc"/>
+        <text x="40" y="232" class="s-mono">H_t−1</text>
+        <path d="M200 312 V240" class="s-acc"/>
+        <text x="210" y="318" class="s-mono">X_t</text>
+        <path d="M160 240 H520" class="s-acc"/>
+        <!-- puertas -->
+        <rect x="170" y="180" width="54" height="30" rx="7" class="s-badf"/><text x="197" y="200" text-anchor="middle" class="s-txt s-bold">σ</text>
+        <rect x="262" y="180" width="54" height="30" rx="7" class="s-okf"/><text x="289" y="200" text-anchor="middle" class="s-txt s-bold">σ</text>
+        <rect x="340" y="180" width="54" height="30" rx="7" class="s-okf"/><text x="367" y="200" text-anchor="middle" class="s-txt s-bold">tanh</text>
+        <rect x="450" y="180" width="54" height="30" rx="7" class="s-soft"/><text x="477" y="200" text-anchor="middle" class="s-txt s-bold">σ</text>
+        <path d="M197 240 V212 M289 240 V212 M367 240 V212 M477 240 V212" class="s-line"/>
+        <!-- olvido -->
+        <path d="M197 180 V84" class="s-line" marker-end="url(#ar71)"/>
+        <circle cx="197" cy="70" r="12" class="s-badf"/><text x="197" y="75" text-anchor="middle" class="s-txt s-bold">×</text>
+        <text x="150" y="140" class="s-mut">F_t</text>
+        <!-- entrada -->
+        <path d="M289 180 V140 H316" class="s-line"/>
+        <path d="M367 180 V140 H344" class="s-line"/>
+        <circle cx="330" cy="140" r="12" class="s-okf"/><text x="330" y="145" text-anchor="middle" class="s-txt s-bold">×</text>
+        <path d="M330 128 V84" class="s-line" marker-end="url(#ar71)"/>
+        <circle cx="330" cy="70" r="12" class="s-okf"/><text x="330" y="75" text-anchor="middle" class="s-txt s-bold">+</text>
+        <text x="252" y="166" class="s-mut">I_t</text><text x="398" y="166" class="s-mut">C̃_t</text>
+        <!-- salida -->
+        <path d="M540 70 V110" class="s-line" marker-end="url(#ar71)"/>
+        <rect x="513" y="112" width="54" height="26" rx="7" class="s-gold"/><text x="540" y="130" text-anchor="middle" class="s-txt s-bold">tanh</text>
+        <path d="M540 138 V183" class="s-line" marker-end="url(#ar71)"/>
+        <path d="M504 195 H526" class="s-line"/>
+        <circle cx="540" cy="195" r="12" class="s-soft"/><text x="540" y="200" text-anchor="middle" class="s-txt s-bold">×</text>
+        <text x="455" y="170" class="s-mut">O_t</text>
+        <path d="M540 207 V240 H650" class="s-acc" marker-end="url(#ar71)"/>
+        <path d="M600 240 V300" class="s-acc" marker-end="url(#ar71)"/>
+        <text x="620" y="232" class="s-mono">H_t</text><text x="610" y="318" class="s-mono">salida H_t</text>
+        <!-- etiquetas de puertas -->
+        <text x="197" y="230" text-anchor="middle" class="s-mut">olvido</text>
+        <text x="328" y="230" text-anchor="middle" class="s-mut">entrada</text>
+        <text x="477" y="230" text-anchor="middle" class="s-mut">salida</text>
+      </svg>
+      </div>
+      <figcaption>Arriba, la «cinta» del estado de celda: solo la tocan un producto (×, puerta de olvido) y una suma (+, lo que deja pasar la puerta de entrada). Abajo, $\mathbf X_t$ y $\mathbf H_{t-1}$ alimentan las cuatro capas (tres sigmoides y una tanh). La puerta de salida filtra $\tanh(\mathbf C_t)$ para dar el nuevo $\mathbf H_t$.</figcaption>
+    </figure>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Puerta</th><th>Qué decide</th><th>Analogía (cinta transportadora)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Olvido</strong> (<em>forget</em>) $\mathbf F_t$</td><td>Qué información del estado de celda anterior se <strong>conserva</strong> y cuál se <strong>elimina</strong>.</td><td>Un <strong>tamiz</strong>: filtra los detalles irrelevantes y deja pasar lo importante.</td></tr>
+        <tr><td><strong>Entrada</strong> (<em>input</em>) $\mathbf I_t$</td><td>Si se permite que <strong>información nueva</strong> entre en el estado de celda y se guarde en la memoria.</td><td>Un <strong>portero</strong>: evalúa lo que llega y decide si merece entrar en la memoria a largo plazo.</td></tr>
+        <tr><td><strong>Salida</strong> (<em>output</em>) $\mathbf O_t$</td><td>Qué parte del estado de celda (filtrado) se <strong>libera</strong> como estado oculto.</td><td>Un <strong>foco</strong>: ilumina los aspectos más importantes de la celda para generar el estado oculto.</td></tr>
+      </tbody>
+    </table></div>
+    <p>La entrada $\mathbf X_t$ y el estado anterior $\mathbf H_{t-1}$ <strong>interactúan</strong> con el estado de celda, pueden modificarlo, y a partir de él se calcula el nuevo estado.</p>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="l3-ecs">
+    <h2 class="sec" data-short="Ecuaciones de la LSTM"><span class="n">3</span> Las ecuaciones: 8 matrices y 4 sesgos</h2>
+    <p>Con vectores fila (como en el Lab 2), $\mathbf X_t\in\mathbb R^{1\times d}$ y $\mathbf H_{t-1}\in\mathbb R^{1\times h}$:</p>
+    <div class="formula-grid">
+      <div class="formula">$$\mathbf F_t=\sigma(\mathbf X_t\mathbf W_{xf}+\mathbf H_{t-1}\mathbf W_{hf}+\mathbf b_f)$$<small>puerta de olvido: valores en (0, 1)</small></div>
+      <div class="formula">$$\mathbf I_t=\sigma(\mathbf X_t\mathbf W_{xi}+\mathbf H_{t-1}\mathbf W_{hi}+\mathbf b_i)$$<small>puerta de entrada: valores en (0, 1)</small></div>
+      <div class="formula">$$\tilde{\mathbf C}_t=\tanh(\mathbf X_t\mathbf W_{xc}+\mathbf H_{t-1}\mathbf W_{hc}+\mathbf b_c)$$<small>celda candidata: valores en (−1, 1)</small></div>
+      <div class="formula">$$\mathbf O_t=\sigma(\mathbf X_t\mathbf W_{xo}+\mathbf H_{t-1}\mathbf W_{ho}+\mathbf b_o)$$<small>puerta de salida: valores en (0, 1)</small></div>
+    </div>
+    <div class="formula-grid">
+      <div class="formula">$$\mathbf C_t=\mathbf F_t\odot\mathbf C_{t-1}+\mathbf I_t\odot\tilde{\mathbf C}_t$$<small>nuevo estado de celda: lo que se conserva + lo nuevo que se admite</small></div>
+      <div class="formula">$$\mathbf H_t=\mathbf O_t\odot\tanh(\mathbf C_t)$$<small>nuevo estado oculto: la celda, aplastada a (−1, 1) y filtrada</small></div>
+    </div>
+    <p>$\odot$ es el producto <strong>elemento a elemento</strong> (Hadamard). Cada puerta es una pequeña capa densa con su activación:</p>
+    <ul>
+      <li>Las tres <strong>puertas</strong> usan la <strong>sigmoide</strong>: un valor cercano a <strong>0</strong> significa «bloquear / olvidar esto» y uno cercano a <strong>1</strong>, «dejar pasar / conservar esto».</li>
+      <li>La <strong>celda candidata</strong> usa <strong>tanh</strong>: es el contenido propuesto, que puede sumar o restar a la memoria.</li>
+      <li>La puerta de entrada hace dos pasos: la sigmoide $\mathbf I_t$ decide <strong>qué componentes</strong> de la candidata se añaden, y $\tilde{\mathbf C}_t$ propone <strong>los valores</strong>.</li>
+      <li>La puerta de salida también hace dos: la sigmoide $\mathbf O_t$ elige qué partes de la celda contribuyen, y $\tanh(\mathbf C_t)$ da los valores.</li>
+    </ul>
+    <h3 id="l3-matrices">Las matrices</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Bloque</th><th>Matrices de entrada</th><th>Matrices recurrentes</th><th>Sesgo</th></tr></thead>
+      <tbody>
+        <tr><td>Puerta de olvido</td><td>$\mathbf W_{xf}$: $d\times h$</td><td>$\mathbf W_{hf}$: $h\times h$</td><td>$\mathbf b_f$: $1\times h$</td></tr>
+        <tr><td>Puerta de entrada</td><td>$\mathbf W_{xi}$: $d\times h$</td><td>$\mathbf W_{hi}$: $h\times h$</td><td>$\mathbf b_i$: $1\times h$</td></tr>
+        <tr><td>Celda candidata</td><td>$\mathbf W_{xc}$: $d\times h$</td><td>$\mathbf W_{hc}$: $h\times h$</td><td>$\mathbf b_c$: $1\times h$</td></tr>
+        <tr><td>Puerta de salida</td><td>$\mathbf W_{xo}$: $d\times h$</td><td>$\mathbf W_{ho}$: $h\times h$</td><td>$\mathbf b_o$: $1\times h$</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>8 matrices y 4 sesgos</strong> que se aprenden durante el entrenamiento. Como $\mathbf X_t\mathbf W_{x\cdot}+\mathbf H_{t-1}\mathbf W_{h\cdot}=[\mathbf X_t,\mathbf H_{t-1}]\begin{bmatrix}\mathbf W_{x\cdot}\\\mathbf W_{h\cdot}\end{bmatrix}$, también se puede <strong>concatenar</strong> la entrada y el estado oculto y usar <strong>4 matrices</strong> de tamaño $(d+h)\times h$ (las $M_1,\dots,M_4$ de la figura de las diapositivas). Es lo que hacen las implementaciones por eficiencia: PyTorch apila las cuatro en <code>weight_ih_l0</code> ($4h\times d$) y <code>weight_hh_l0</code> ($4h\times h$), en el orden <strong>entrada, olvido, celda, salida</strong>.</p>
+    <details class="solution"><summary>Ejercicio: un paso de una LSTM con una sola unidad</summary><div>
+      <p>Supón $C_{t-1}=0{,}8$ y que las puertas valen $F_t=0{,}9$, $I_t=0{,}2$, $\tilde C_t=-0{,}5$ y $O_t=0{,}7$. Entonces:</p>
+      <p>$C_t=0{,}9\cdot0{,}8+0{,}2\cdot(-0{,}5)=0{,}72-0{,}10=\mathbf{0{,}62}$ y $H_t=0{,}7\cdot\tanh(0{,}62)=0{,}7\cdot0{,}551=\mathbf{0{,}386}$.</p>
+      <p>Si la red quiere <strong>guardar</strong> el valor indefinidamente, le basta con $F_t=1$ e $I_t=0$: entonces $C_t=C_{t-1}$ exactamente, sin importar lo que llegue. Con $F_t=0$ e $I_t=1$, la celda se <strong>sobrescribe</strong> con $\tilde C_t$.</p></div></details>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="l3-params">
+    <h2 class="sec" data-short="Número de parámetros"><span class="n">4</span> Número de parámetros</h2>
+    <p>Cada uno de los cuatro bloques tiene una matriz de entrada ($i\times h$, con $i$ el tamaño de la entrada), una recurrente ($h\times h$) y un sesgo ($h$):</p>
+    <div class="formula">$$\text{Parámetros}=4\big[(i\times h)+(h\times h)+h\big]=4\,h\,(i+h+1)=4ih+4h^2+4h$$</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Complejidad</th><th>Ejemplo</th><th class="num">Entrada $i$</th><th class="num">Ocultas $h$</th><th class="num">Parámetros (aprox.)</th></tr></thead>
+      <tbody>
+        <tr><td>Pequeña</td><td>Series temporales (bolsa)</td><td class="num">25</td><td class="num">100</td><td class="num">≈ 50 400</td></tr>
+        <tr><td>Media</td><td>Clasificación de secuencias, texto corto</td><td class="num">100 (embedding)</td><td class="num">256</td><td class="num">≈ 373 700 *</td></tr>
+        <tr><td>Grande</td><td>Modelado acústico (voz)</td><td class="num">512</td><td class="num">800 (2 capas)</td><td class="num">≈ 13 millones *</td></tr>
+        <tr><td>Muy grande</td><td>Modelo de lenguaje (carácter)</td><td class="num">4096 (embedding)</td><td class="num">256</td><td class="num">≈ 4,4 millones por capa</td></tr>
+      </tbody>
+    </table></div>
+    <p class="code-note">* Valores de la tabla de las diapositivas. Con la fórmula exacta salen 365 568 para la fila media ($4\cdot256\cdot357$) y unos 9,3 millones para dos capas de 800 (la segunda capa tiene entrada 800); la tabla los redondea con holgura. La primera y la última fila sí cuadran: $4\cdot100\cdot126=50\,400$ y $4\cdot256\cdot4353=4\,457\,472$.</p>
+    <div class="callout warn"><div class="ct">⚠ En PyTorch hay dos sesgos por bloque</div><p><code>nn.LSTM</code> tiene <code>bias_ih</code> y <code>bias_hh</code> (redundantes, por compatibilidad con cuDNN), así que cuenta $4h(i+h+2)$. Para $i=5$, $h=32$: la fórmula de clase da $4\cdot32\cdot38=4\,864$ y PyTorch, $4\cdot32\cdot39=4\,992$. Lo mismo pasa con <code>nn.RNN</code> ($h(i+h+2)$) y <code>nn.GRU</code> ($3h(i+h+2)$).</p></div>
+    <details class="solution"><summary>Ejercicio: RNN, LSTM y GRU con i = 28 y h = 256</summary><div>
+      <p>Capa recurrente sola (un sesgo por bloque): RNN $=256\cdot(28+256+1)=72\,960$; LSTM $=4\cdot72\,960=291\,840$; GRU $=3\cdot72\,960=218\,880$.</p>
+      <p>Con el mismo $h$, la LSTM tiene <strong>4 veces</strong> los parámetros recurrentes de la RNN y la GRU <strong>3 veces</strong>: la GRU tiene un <strong>25 % menos</strong> que la LSTM. Una RNN con los mismos parámetros que una LSTM de $h$ unidades necesitaría unas $2h$ unidades (porque $h^2$ domina).</p></div></details>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="l3-train">
+    <h2 class="sec" data-short="Entrenamiento (BPTT)"><span class="n">5</span> Entrenamiento: el mismo BPTT que en una RNN</h2>
+    <p>Se entrena con <strong>retropropagación a través del tiempo</strong> (BPTT), igual que una RNN <em>vanilla</em>: se despliega el modelo a lo largo de la secuencia (cada copia comparte los mismos pesos) y:</p>
+    <ol>
+      <li>se calculan los gradientes de la pérdida respecto a la salida de cada <strong>puerta</strong> interna (olvido, entrada y salida) en <strong>cada paso de tiempo</strong>;</li>
+      <li>con esos gradientes de las puertas se obtienen los de los <strong>pesos y sesgos</strong> de la red a lo largo de toda la secuencia;</li>
+      <li>los gradientes se <strong>acumulan</strong> (suman) sobre todos los pasos, para tener en cuenta las dependencias largas;</li>
+      <li>un optimizador como <strong>Adam</strong> o <strong>RMSprop</strong> usa esos gradientes acumulados para ajustar los parámetros.</li>
+    </ol>
+    <p>Todo lo del Lab 2 sigue valiendo: BPTT truncado, recorte del gradiente, parada temprana, minilotes.</p>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="l3-grad">
+    <h2 class="sec" data-short="Por qué mitiga el desvanecimiento"><span class="n">6</span> ¿Cómo evita la LSTM el desvanecimiento del gradiente?</h2>
+    <p>Usando una <strong>celda de memoria</strong> y <strong>mecanismos de puertas</strong> (sobre todo la de olvido) que permiten que el gradiente fluya <strong>sin cambios</strong> a lo largo de muchos pasos. El estado de celda recorre la cadena con interacciones solo <strong>aditivas y multiplicativas elemento a elemento</strong>, en lugar de una serie de transformaciones complejas con pesos en cada paso.</p>
+    <div class="compare">
+      <div><h5>RNN vanilla</h5><p>$\mathbf H_t=\phi(\mathbf X_t\mathbf W_{xh}+\mathbf H_{t-1}\mathbf W_{hh}+\mathbf b_h)$, así que</p><p>$\dfrac{\partial\mathbf H_t}{\partial\mathbf H_{t-1}}=\operatorname{diag}(\phi')\,\mathbf W_{hh}^{\top}$</p><p>El gradiente que vuelve $k$ pasos atrás se multiplica $k$ veces por <strong>la misma matriz</strong> y por derivadas $\le1$: tiende a 0 (o explota si $\mathbf W_{hh}$ es grande). Para conservar información, la red tiene que <strong>aprender</strong> una $\mathbf W_{hh}$ que la preserve, y eso es difícil.</p></div>
+      <div><h5>LSTM</h5><p>$\mathbf C_t=\mathbf F_t\odot\mathbf C_{t-1}+\mathbf I_t\odot\tilde{\mathbf C}_t$, así que por el camino directo de la celda</p><p>$\dfrac{\partial\mathbf C_t}{\partial\mathbf C_{t-1}}=\operatorname{diag}(\mathbf F_t)$</p><p>Sin matriz de pesos y sin derivada de una activación: solo el valor de la puerta de olvido, <strong>que decide la propia red</strong> en cada paso. Si $\mathbf F\approx1$, el gradiente pasa casi intacto aunque sean cientos de pasos.</p></div>
+    </div>
+    <div class="callout key"><div class="ct">◆ ¿Resuelve la LSTM el desvanecimiento del gradiente?</div><p>La arquitectura hace <strong>más fácil</strong> que la red conserve información durante muchos pasos (por ejemplo, con $f=1$ e $i=0$ la información de esa celda se conserva <strong>indefinidamente</strong>; a una RNN <em>vanilla</em> le cuesta mucho aprender una $\mathbf W_{hh}$ que haga eso). Pero la LSTM <strong>no garantiza</strong> que no haya desvanecimiento ni explosión del gradiente: proporciona una forma más fácil de aprender dependencias lejanas. Por eso se sigue usando recorte del gradiente.</p></div>
+    <div class="callout def"><div class="ct">◆ Un truco práctico (no está en las diapositivas)</div><p>Si la puerta de olvido empieza en $\sigma(0)=0{,}5$, la memoria se reduce a la mitad en cada paso al principio del entrenamiento: tras 20 pasos queda $0{,}5^{20}\approx10^{-6}$. Inicializar el <strong>sesgo de la puerta de olvido a 1</strong> (Gers et al., 2000; Jozefowicz et al., 2015) hace que empiece en $\sigma(1)\approx0{,}73$ (o más), recordando por defecto. Se prueba en el cuaderno de la Parte I.</p></div>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="l3-exito">
+    <h2 class="sec" data-short="Éxitos de la LSTM"><span class="n">7</span> El éxito de las LSTM (2011–2017)</h2>
+    <p>Aunque se publicaron en 1997, las LSTM ganaron protagonismo con victorias en competiciones de predicción a mediados de los 2000 y fueron los <strong>modelos dominantes</strong> en aprendizaje de secuencias desde 2011 hasta la llegada de los <strong>Transformers</strong> (2017). Incluso los Transformers deben algunas de sus ideas clave a las innovaciones de diseño de la LSTM.</p>
+    <p>Su gran logro fue resolver en la práctica el problema del desvanecimiento del gradiente que lastraba a las RNN y, con ello, hacer posibles grandes aplicaciones reales:</p>
+    <ul>
+      <li><strong>Búsqueda por voz y voz a texto de Google</strong>: mejoras drásticas de precisión al adoptar LSTM, sobre todo con frases largas y entornos ruidosos.</li>
+      <li><strong>Amazon Alexa y Apple Siri</strong> incorporaron LSTM para mejorar la comprensión del lenguaje natural y la generación de respuestas.</li>
+      <li><strong>Google Translate</strong> (2015–2016): traducción automática neuronal con LSTM.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ 8 -->
+  <section id="l3-gru">
+    <h2 class="sec" data-short="GRU"><span class="n">8</span> La GRU: una LSTM simplificada</h2>
+    <p>La <strong>Gated Recurrent Unit</strong> (Cho et al., 2014) se propuso como simplificación de la LSTM. En lugar de mantener dos estados separados, <strong>fusiona el estado de celda y el estado oculto en uno solo</strong>, $\mathbf h_t$, y usa <strong>dos puertas</strong> en lugar de tres, además de un estado oculto candidato. El modelo resultante es más sencillo, tiene <strong>menos parámetros</strong> y se entrena <strong>más rápido</strong>.</p>
+    <div class="formula-grid">
+      <div class="formula">$$\mathbf z_t=\sigma(\mathbf W_{XZ}\mathbf x_t+\mathbf W_{HZ}\mathbf h_{t-1}+\mathbf b_Z)$$<small>puerta de actualización (<em>update</em>): cuánta información pasada se conserva</small></div>
+      <div class="formula">$$\mathbf r_t=\sigma(\mathbf W_{XR}\mathbf x_t+\mathbf W_{HR}\mathbf h_{t-1}+\mathbf b_R)$$<small>puerta de reinicio (<em>reset</em>): cuánto del estado anterior se olvida al calcular lo nuevo</small></div>
+      <div class="formula">$$\tilde{\mathbf h}_t=\tanh\big(\mathbf W_{XH}\mathbf x_t+\mathbf W_{HH}(\mathbf r_t\odot\mathbf h_{t-1})+\mathbf b_H\big)$$<small>estado oculto candidato</small></div>
+      <div class="formula">$$\mathbf h_t=(1-\mathbf z_t)\odot\mathbf h_{t-1}+\mathbf z_t\odot\tilde{\mathbf h}_t$$<small>nuevo estado: interpolación entre el anterior y el candidato</small></div>
+    </div>
+    <ul>
+      <li><strong>Puerta de actualización</strong> $\mathbf z_t$: son <strong>coeficientes de interpolación</strong> entre el estado anterior y el candidato. Valores grandes favorecen incorporar información nueva; valores pequeños, conservar la memoria existente. Pregunta que responde: <em>¿cuánta memoria antigua se retiene frente a cuánta se reemplaza?</em></li>
+      <li><strong>Puerta de reinicio</strong> $\mathbf r_t$: el término $\mathbf r_t\odot\mathbf h_{t-1}$ actúa como una puerta sobre el estado antiguo <strong>antes</strong> de que contribuya al candidato. Pregunta: <em>¿cuánta memoria antigua se tiene en cuenta al crear la nueva?</em></li>
+      <li>Conceptualmente, $\mathbf h_t$ hace a la vez de <strong>estado de celda y estado oculto</strong> de la LSTM. Igual que en la celda de la LSTM, si $\mathbf z_t\approx0$ el estado se copia tal cual y el gradiente pasa sin degradarse.</li>
+    </ul>
+    <div class="callout warn"><div class="ct">⚠ Convención de la puerta de actualización</div><p>En las diapositivas (y en d2l), $\mathbf z_t$ grande = <strong>actualizar</strong> (tomar el candidato). PyTorch usa la convención contraria: $\mathbf h_t=(1-\mathbf z_t)\odot\tilde{\mathbf h}_t+\mathbf z_t\odot\mathbf h_{t-1}$. Es el mismo modelo con la puerta «invertida»; no cambia nada en la práctica, pero cuidado al leer fórmulas.</p></div>
+    <h3 id="l3-gru-params">Parámetros: un 25 % menos</h3>
+    <p>La GRU tiene <strong>3 matrices de entrada + 3 recurrentes</strong> (actualización, reinicio y candidato), mientras que la LSTM tiene <strong>4 + 4</strong>. Por eso, con el mismo tamaño oculto, la GRU tiene unos <strong>3/4 de los parámetros</strong>: $3h(i+h+1)$ frente a $4h(i+h+1)$.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th></th><th>LSTM</th><th>GRU</th></tr></thead>
+      <tbody>
+        <tr><td>Estados</td><td>Dos: $\mathbf C_t$ y $\mathbf H_t$</td><td>Uno: $\mathbf h_t$</td></tr>
+        <tr><td>Puertas</td><td>Tres: entrada, olvido, salida</td><td>Dos: actualización, reinicio</td></tr>
+        <tr><td>Parámetros</td><td>Más ($4h(i+h+1)$)</td><td>Menos ($3h(i+h+1)$)</td></tr>
+        <tr><td>Velocidad y memoria</td><td>Más lenta, más memoria</td><td>Más rápida y ligera</td></tr>
+        <tr><td>Dependencias largas</td><td>Suele ser mejor con dependencias muy largas y complejas: la celda explícita da un control más fino</td><td>Buena con muchas dependencias largas, pero puede quedarse corta cuando hace falta un control muy fino de la memoria</td></tr>
+        <tr><td>Rendimiento</td><td>Puede ser mejor con conjuntos muy grandes o secuencias muy largas</td><td>A menudo comparable a la LSTM, sobre todo con conjuntos pequeños: buen equilibrio velocidad/precisión</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ ¿Cuál elegir?</div><ul>
+      <li><strong>LSTM</strong> si gestionar dependencias <strong>extremadamente largas</strong> es crítico y hay recursos y datos suficientes (modelado de lenguaje, traducción, series temporales complejas).</li>
+      <li><strong>GRU</strong> si se necesita un modelo <strong>más ligero</strong> que entrene más rápido, con conjuntos de datos pequeños o con poca memoria o cómputo.</li>
+      <li>En la práctica ambas suelen rendir parecido: una estrategia habitual es <strong>empezar con una GRU</strong> y pasar a LSTM solo si parece que hace falta más capacidad de memoria.</li>
+    </ul></div>
+  </section>
+
+  <!-- ============================================================ 9 -->
+  <section id="l3-variantes">
+    <h2 class="sec" data-short="Apiladas y bidireccionales"><span class="n">9</span> LSTM apiladas y bidireccionales</h2>
+    <div class="compare">
+      <div><h5>LSTM apiladas (<em>deep LSTM</em>)</h5><p>Varias capas LSTM una encima de otra: la secuencia de estados ocultos de la capa 1 es la entrada de la capa 2, y así sucesivamente. Cada capa puede aprender representaciones más abstractas. Graves, Mohamed y Hinton (2013) las usaron en reconocimiento de voz. En PyTorch: <code>nn.LSTM(..., num_layers=2)</code>; el parámetro <code>dropout</code> se aplica <strong>entre capas</strong> (no tiene efecto con una sola capa).</p></div>
+      <div><h5>LSTM bidireccionales</h5><p>Una LSTM lee la secuencia hacia delante y otra hacia atrás; en cada posición se concatenan sus estados ocultos. Sirven cuando para predecir bien hace falta el contexto <strong>pasado y futuro</strong>: muchas tareas de PLN, biología, series temporales (Graves y Schmidhuber, 2005, clasificación de fonemas). En PyTorch: <code>bidirectional=True</code> (el estado final tiene tamaño $2h$).</p></div>
+    </div>
+    <div class="callout exam"><div class="ct">★ Cuándo NO se puede usar una bidireccional</div><p>Solo tiene sentido si la secuencia entera está disponible al predecir. Para <strong>clasificar una reseña</strong> (Parte II) sí: se lee completa. Para <strong>predecir el siguiente carácter</strong> (Parte III) no: la dirección hacia atrás «vería» el carácter que hay que predecir (fuga de información) y en generación el futuro no existe.</p></div>
+    <div class="callout def"><div class="ct">◆ Bibliografía de las diapositivas</div><ul>
+      <li>Hochreiter, S. y Schmidhuber, J. (1997). Long short-term memory. <em>Neural Computation</em>, 9(8), 1735–1780. <strong>Introduce la LSTM.</strong></li>
+      <li>Gers, F. A., Schmidhuber, J. y Cummins, F. (2000). Learning to Forget: Continual Prediction with LSTM. <em>Neural Computation</em>, 12(10). <strong>LSTM completa con puerta de olvido.</strong></li>
+      <li>Cho, K. et al. (2014). Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation. <em>EMNLP</em>. <strong>Introduce la GRU.</strong></li>
+      <li>Greff, K. et al. (2017). LSTM: A Search Space Odyssey. <em>IEEE TNNLS</em>, 28(10). <strong>Estudio de variantes de la LSTM.</strong></li>
+      <li>Graves, A., Mohamed, A. y Hinton, G. (2013). Speech recognition with deep recurrent neural networks. <em>ICASSP</em>. <strong>LSTM apiladas.</strong></li>
+      <li>Graves, A. y Schmidhuber, J. (2005). Framewise phoneme classification with bidirectional LSTM networks. <em>IJCNN</em>. <strong>LSTM bidireccionales.</strong></li>
+    </ul></div>
+    <div class="mini-quiz"><p>Preguntas de la teoría del Lab 3: puertas, ecuaciones, parámetros, gradiente, GRU y variantes.</p><a class="btn btn-solid" href="../test.html#tema=L3">Test de teoría L3 →</a></div>
+  </section>
+
+  <div class="part-title" data-part="Parte II · Cuadernos del Lab 3"><div><span>Parte II</span><h2>Cuadernos del Lab 3 resueltos</h2></div></div>
+
+  <!-- ============================================================ PARTE I -->
+  <section id="l3a">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Parte I · Copia con retardo">Parte I · Copia con retardo: RNN frente a LSTM</h2><span>PyTorch · L3_P1_copia_con_retardo_resuelta.ipynb</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Entender <strong>qué tarea</strong> resuelve el código, <strong>cómo se calcula el error</strong> y <strong>por qué tiene sentido</strong>.</li>
+          <li>Ejecutarlo con distintos parámetros y sacar conclusiones sobre RNN frente a LSTM.</li>
+          <li>Con los valores por defecto la LSTM sale <strong>igual o peor</strong>: mirar las <strong>curvas de aprendizaje</strong>, optimizar y hacer una <strong>comparación justa</strong>.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Código original ejecutado tal cual (con semilla).</li>
+          <li>Función de entrenamiento instrumentada que guarda las curvas, con las mismas secuencias de test para los dos modelos.</li>
+          <li>Diagnóstico con 60 épocas sin parada temprana.</li>
+          <li>4 experimentos acumulativos (presupuesto, tamaño oculto, inicialización que conserva la memoria, tasa) con 3 semillas y retardos 17 y 29.</li>
+          <li>Comparación final con 5 ejecuciones por retardo, incluida una RNN con los mismos parámetros que la LSTM.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="l3a-tarea">La tarea, el error y por qué tiene sentido</h3>
+    <div class="nb-step" data-step="1">
+      <h4>Copiar la entrada con d pasos de retraso</h4>
+<pre data-code="generate_batch_delay (original)">
+seq_len = delay * 2
+seq = torch.zeros(batch_size, seq_len, 5)
+seq[:, :delay, :] = (torch.rand(batch_size, delay, 5) > 0.5).float()   # d vectores de 5 bits aleatorios
+target = torch.zeros_like(seq)
+target[:, delay:, :] = seq[:, :delay, :]                              # los mismos, d pasos después
+</pre>
+      <p class="code-note">Secuencias de $2d$ pasos: $d$ vectores de 5 bits aleatorios y después $d$ vectores de ceros. El objetivo en el paso $d+k$ es la entrada del paso $k$: $\mathbf y_t=\mathbf x_{t-d}$, una <strong>línea de retardo</strong>.</p>
+    </div>
+<pre data-code="Salida del cuaderno: un ejemplo con d = 4">
+   entrada x        objetivo y
+t  0 1 2 3 4        0 1 2 3 4
+0  0 1 0 0 0        0 0 0 0 0
+1  1 0 1 0 1        0 0 0 0 0
+2  0 0 0 0 0        0 0 0 0 0
+3  1 1 1 0 0        0 0 0 0 0
+4  0 0 0 0 0        0 1 0 0 0      ← copia de t = 0
+5  0 0 0 0 0        1 0 1 0 1      ← copia de t = 1
+6  0 0 0 0 0        0 0 0 0 0      ← copia de t = 2
+7  0 0 0 0 0        1 1 1 0 0      ← copia de t = 3
+</pre>
+    <div class="nb-step" data-step="2">
+      <h4>El error: BCE solo en la segunda mitad; el azar es el 50 %</h4>
+<pre data-code="Pérdida y exactitud (original)">
+criterion = nn.BCEWithLogitsLoss()                                     # sigmoide + entropía cruzada binaria
+loss = criterion(output[:, delay:, :], seq_target[:, delay:, :])       # solo la segunda mitad
+preds = (torch.sigmoid(output) > 0.5).float()                          # exactitud = % de bits acertados
+</pre>
+      <p class="code-note">En la primera mitad todavía no hay nada que recordar, así que no cuenta. Como los bits son aleatorios e independientes, un modelo sin memoria acierta el <strong>50 %</strong> y su pérdida es $\ln2\approx0{,}693$. Los datos se generan nuevos en cada lote: <strong>no puede haber sobreajuste</strong>.</p>
+    </div>
+    <div class="callout key"><div class="ct">◆ Por qué tiene sentido esta tarea</div><ul>
+      <li><strong>Aísla la memoria</strong>: no hay ningún patrón que aprender salvo recordar; todo lo que pase del 50 % es memoria.</li>
+      <li><strong>Fija la distancia de la dependencia</strong>: cada salida depende de una entrada exactamente $d$ pasos atrás, así que el gradiente del BPTT tiene que cruzar $d$ pasos. Es el desvanecimiento del gradiente con un parámetro que se puede subir a voluntad.</li>
+      <li><strong>Mide la capacidad</strong>: en el paso $d$ hay que tener guardados $5d$ bits a la vez (145 con $d=29$) en 32 unidades.</li>
+      <li>Es la versión simplificada de las tareas sintéticas (<em>copy memory</em>, <em>adding problem</em>) con las que se presentó la LSTM en 1997.</li>
+    </ul></div>
+
+    <h3 id="l3a-original">El código original: la LSTM sale peor</h3>
+    <p>Ambos modelos con 32 unidades (RNN: 1 413 parámetros; LSTM: 5 157), Adam con tasa 0,01, lotes de 32, como mucho 15 épocas de 100 lotes y parada temprana con paciencia 3; 5 ejecuciones por retardo.</p>
+<!--CHART:c_copia_original-->
+<figure class="diagram"><div class="svg-scroll">
+<svg viewBox="0 0 520 230" width="520" role="img" aria-label="Exactitud del código original según el retardo">
+<path d="M56 190.0 H508" class="s-grid"/>
+<text x="50" y="194.0" text-anchor="end" class="s-mut">50 %</text>
+<path d="M56 158.8 H508" class="s-grid"/>
+<text x="50" y="162.8" text-anchor="end" class="s-mut">60 %</text>
+<path d="M56 127.6 H508" class="s-grid"/>
+<text x="50" y="131.6" text-anchor="end" class="s-mut">70 %</text>
+<path d="M56 96.4 H508" class="s-grid"/>
+<text x="50" y="100.4" text-anchor="end" class="s-mut">80 %</text>
+<path d="M56 65.2 H508" class="s-grid"/>
+<text x="50" y="69.2" text-anchor="end" class="s-mut">90 %</text>
+<path d="M56 34.0 H508" class="s-grid"/>
+<text x="50" y="38.0" text-anchor="end" class="s-mut">100 %</text>
+<path d="M56 34 V190 H508" class="s-thin"/>
+<text x="65.0" y="205" text-anchor="middle" class="s-mut">1</text>
+<text x="127.0" y="205" text-anchor="middle" class="s-mut">5</text>
+<text x="189.0" y="205" text-anchor="middle" class="s-mut">9</text>
+<text x="251.0" y="205" text-anchor="middle" class="s-mut">13</text>
+<text x="313.0" y="205" text-anchor="middle" class="s-mut">17</text>
+<text x="375.0" y="205" text-anchor="middle" class="s-mut">21</text>
+<text x="437.0" y="205" text-anchor="middle" class="s-mut">25</text>
+<text x="499.0" y="205" text-anchor="middle" class="s-mut">29</text>
+<text x="282.0" y="224" text-anchor="middle" class="s-mut">retardo d</text>
+<text x="11" y="112.0" text-anchor="middle" class="s-mut" transform="rotate(-90 11 112.0)">exactitud</text>
+<path d="M65.0,34.0 L127.0,37.4 L189.0,98.0 L251.0,132.6 L313.0,138.5 L375.0,146.3 L437.0,181.0 L499.0,189.4" class="s-acc"/>
+<circle cx="65.0" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 1: 100,0 %</title></circle>
+<circle cx="127.0" cy="37.4" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 5: 98,9 %</title></circle>
+<circle cx="189.0" cy="98.0" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 9: 79,5 %</title></circle>
+<circle cx="251.0" cy="132.6" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 13: 68,4 %</title></circle>
+<circle cx="313.0" cy="138.5" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 17: 66,5 %</title></circle>
+<circle cx="375.0" cy="146.3" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 21: 64,0 %</title></circle>
+<circle cx="437.0" cy="181.0" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 25: 52,9 %</title></circle>
+<circle cx="499.0" cy="189.4" r="2.6" style="fill:var(--accent)"><title>RNN (original) · 29: 50,2 %</title></circle>
+<path d="M65.0,34.0 L127.0,35.2 L189.0,83.6 L251.0,138.2 L313.0,190.0 L375.0,189.7 L437.0,190.0 L499.0,190.0" class="s-goldl"/>
+<circle cx="65.0" cy="34.0" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 1: 100,0 %</title></circle>
+<circle cx="127.0" cy="35.2" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 5: 99,6 %</title></circle>
+<circle cx="189.0" cy="83.6" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 9: 84,1 %</title></circle>
+<circle cx="251.0" cy="138.2" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 13: 66,6 %</title></circle>
+<circle cx="313.0" cy="190.0" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 17: 50,0 %</title></circle>
+<circle cx="375.0" cy="189.7" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 21: 50,1 %</title></circle>
+<circle cx="437.0" cy="190.0" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 25: 50,0 %</title></circle>
+<circle cx="499.0" cy="190.0" r="2.6" style="fill:var(--gold)"><title>LSTM (original) · 29: 49,9 %</title></circle>
+<path d="M56 12 H72" class="s-acc"/>
+<text x="77" y="16" class="s-txt-2">RNN (original)</text>
+<path d="M168.8 12 H184.8" class="s-goldl"/>
+<text x="189.8" y="16" class="s-txt-2">LSTM (original)</text>
+</svg>
+</div><figcaption>Código original: exactitud media de 5 ejecuciones según el retardo. 50 % = azar.</figcaption></figure>
+<!--/CHART-->
+    <ul>
+      <li>Con retardos cortos los dos aciertan casi todo, y con $d=9$ la LSTM va algo por delante (84,1 % frente a 79,5 %).</li>
+      <li>Desde $d=17$ la LSTM se queda <strong>exactamente en el 50 %</strong>: no aprende nada. La RNN aún retiene algo con $d=17$ y 21 (66,5 % y 64,0 %) y llega al azar con $d=29$.</li>
+      <li>Es lo contrario de lo que predice la teoría, y es lo que el enunciado pide explicar con las curvas de aprendizaje.</li>
+    </ul>
+    <div class="callout warn"><div class="ct">✕ Un error del código: el «mejor modelo» no se guarda</div><p><code>best_model_state = model.state_dict()</code> guarda <strong>referencias</strong> a los tensores del modelo, no una copia: el optimizador los sigue modificando y al final <code>load_state_dict</code> carga los pesos de la <strong>última</strong> época. Se corrige con <code>copy.deepcopy(model.state_dict())</code>; el cuaderno lo comprueba (el estado guardado comparte memoria con el modelo).</p></div>
+
+    <h3 id="l3a-diag">Diagnóstico con las curvas de aprendizaje</h3>
+    <p>Parámetros por defecto pero <strong>60 épocas sin parada temprana</strong>, 3 semillas por retardo, marcando dónde habría parado la paciencia 3.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Modelo · retardo</th><th class="num">Parada con paciencia 3 (época media)</th><th class="num">Exactitud de validación en esa época</th><th class="num">Exactitud tras 60 épocas</th></tr></thead>
+      <tbody>
+        <tr><td>RNN · d = 5</td><td class="num">31</td><td class="num">99,7 %</td><td class="num">100 %</td></tr>
+        <tr><td>LSTM · d = 5</td><td class="num">24</td><td class="num">99,8 %</td><td class="num">99,8 %</td></tr>
+        <tr><td>RNN · d = 13</td><td class="num">19</td><td class="num">69,8 %</td><td class="num">70,9 %</td></tr>
+        <tr><td>LSTM · d = 13</td><td class="num">22</td><td class="num">60,1 %</td><td class="num">59,9 %</td></tr>
+        <tr><td>RNN · d = 21</td><td class="num">27</td><td class="num">65,1 %</td><td class="num">68,8 %</td></tr>
+        <tr><td>LSTM · d = 21</td><td class="num"><strong>5</strong></td><td class="num">50,1 %</td><td class="num"><strong>50,0 %</strong></td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Lo que dicen las curvas</div><ul>
+      <li>Con $d=13$, <strong>2 de las 3 LSTM se quedan planas en $\ln2$ las 60 épocas</strong>; la tercera despega y acaba por debajo de la RNN (pérdida ≈ 0,36 frente a ≈ 0,42): cuando la LSTM aprende, aprende mejor. Con $d=21$, las 3 LSTM están planas todo el tiempo.</li>
+      <li>La RNN aprende desde la primera época pero se estanca, y tiene <strong>picos</strong> de pérdida: la tasa 0,01 es alta para ella.</li>
+      <li>La paciencia 3 corta a la LSTM en plena meseta (época 5 con $d=21$), pero <strong>no es la causa principal</strong>: aunque entrene 60 épocas sigue en el azar. La LSTM <strong>no recibe una señal útil</strong> para empezar a recordar: con el sesgo de olvido ≈ 0, la puerta empieza en $\sigma(0)=0{,}5$ y la información se divide por 2 en cada paso.</li>
+    </ul></div>
+
+    <h3 id="l3a-exp">Experimentos</h3>
+    <p>Acumulativos, con los dos modelos, retardos 17 y 29, 3 semillas y las mismas secuencias de test (exactitud media):</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Experimento · opción</th><th>Modelo</th><th class="num">d = 17</th><th class="num">d = 29</th></tr></thead>
+      <tbody>
+        <tr><td>1 · 15 épocas, paciencia 3 (original)</td><td>RNN / LSTM</td><td class="num">67,5 % / 50,3 %</td><td class="num">52,0 % / 50,0 %</td></tr>
+        <tr><td>1 · 100 épocas, paciencia 20</td><td>RNN / LSTM</td><td class="num">70,1 % / 50,2 %</td><td class="num">56,6 % / 50,0 %</td></tr>
+        <tr><td>2 · h = 128 (inicialización por defecto, lr 0,01)</td><td>RNN / LSTM</td><td class="num">53,1 % / 53,5 %</td><td class="num">50,1 % / 49,9 %</td></tr>
+        <tr><td>3 · LSTM con sesgo de olvido 1</td><td>LSTM</td><td class="num">96,6 %</td><td class="num">55,4 %</td></tr>
+        <tr><td>3 · <strong>sesgo de olvido 3</strong> / <strong>$\mathbf W_{hh}$ ortogonal</strong></td><td>RNN / LSTM</td><td class="num">73,2 % / <strong>100 %</strong></td><td class="num">49,9 % / <strong>80,2 %</strong></td></tr>
+        <tr><td>4 · lr 0,003</td><td>RNN / LSTM</td><td class="num">100 % / <strong>99,9 %</strong></td><td class="num">94,2 % / <strong>92,9 %</strong></td></tr>
+        <tr><td>4 · lr 0,001 + recorte 1</td><td>RNN / LSTM</td><td class="num"><strong>100 %</strong> / 87,5 %</td><td class="num"><strong>97,3 %</strong> / 76,6 %</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li><strong>Más presupuesto</strong> no despierta a la LSTM. <strong>128 unidades</strong> no ayudan si la señal no llega (se mantienen por capacidad: 32 no bastan para 145 bits).</li>
+      <li><strong>El cambio decisivo</strong>: una inicialización que conserve la memoria. Con sesgo de olvido 3 la puerta empieza en σ(3) ≈ 0,95 ($0{,}95^{17}\approx0{,}42$ frente a $0{,}5^{17}\approx8\cdot10^{-6}$) y la LSTM salta del 53 % al 100 % con $d=17$.</li>
+      <li>La RNN necesitaba su equivalente, <strong>$\mathbf W_{hh}$ ortogonal</strong>, y pasos más pequeños: con 0,001 y recorte llega al 97,3 % con $d=29$.</li>
+    </ul>
+    <p><strong>Configuraciones finales</strong> (h = 128, mismo presupuesto): RNN con $\mathbf W_{hh}$ ortogonal, Adam 0,001 y recorte 1; LSTM con sesgo de olvido 3 y Adam 0,003.</p>
+
+    <h3 id="l3a-final">Comparación justa</h3>
+    <p>5 ejecuciones por retardo, hasta 100 épocas de 100 lotes, las mismas secuencias de test, y una RNN de 256 unidades con los <strong>mismos parámetros</strong> que la LSTM (68 613 frente a 69 765; la RNN de 128 tiene 17 925).</p>
+    <figure class="diagram"><div class="svg-scroll">
+<!--CHART:c_copia_final-->
+<svg viewBox="0 0 560 250" width="560" role="img" aria-label="Comparación justa: exactitud según el retardo">
+<path d="M56 210.0 H548" class="s-grid"/>
+<text x="50" y="214.0" text-anchor="end" class="s-mut">50 %</text>
+<path d="M56 174.8 H548" class="s-grid"/>
+<text x="50" y="178.8" text-anchor="end" class="s-mut">60 %</text>
+<path d="M56 139.6 H548" class="s-grid"/>
+<text x="50" y="143.6" text-anchor="end" class="s-mut">70 %</text>
+<path d="M56 104.4 H548" class="s-grid"/>
+<text x="50" y="108.4" text-anchor="end" class="s-mut">80 %</text>
+<path d="M56 69.2 H548" class="s-grid"/>
+<text x="50" y="73.2" text-anchor="end" class="s-mut">90 %</text>
+<path d="M56 34.0 H548" class="s-grid"/>
+<text x="50" y="38.0" text-anchor="end" class="s-mut">100 %</text>
+<path d="M56 34 V210 H548" class="s-thin"/>
+<text x="65.0" y="225" text-anchor="middle" class="s-mut">1</text>
+<text x="151.2" y="225" text-anchor="middle" class="s-mut">9</text>
+<text x="237.4" y="225" text-anchor="middle" class="s-mut">17</text>
+<text x="323.5" y="225" text-anchor="middle" class="s-mut">25</text>
+<text x="366.6" y="225" text-anchor="middle" class="s-mut">29</text>
+<text x="452.8" y="225" text-anchor="middle" class="s-mut">37</text>
+<text x="539.0" y="225" text-anchor="middle" class="s-mut">45</text>
+<text x="302.0" y="244" text-anchor="middle" class="s-mut">retardo d</text>
+<text x="11" y="122.0" text-anchor="middle" class="s-mut" transform="rotate(-90 11 122.0)">exactitud</text>
+<path d="M65.0,34.0 L108.1,34.0 L151.2,34.0 L194.3,34.0 L237.4,34.0 L280.5,34.0 L323.5,34.0 L366.6,34.0 L452.8,34.0 L539.0,34.0 L539.0,35.5 L452.8,34.0 L366.6,34.0 L323.5,34.0 L280.5,34.0 L237.4,34.0 L194.3,34.0 L151.2,34.0 L108.1,34.0 L65.0,34.0 Z" style="fill:var(--ok);opacity:.14;stroke:none"/>
+<path d="M65.0,34.0 L108.1,34.0 L151.2,34.0 L194.3,34.0 L237.4,34.0 L280.5,34.0 L323.5,34.0 L366.6,34.0 L452.8,34.0 L539.0,35.0" class="s-okl"/>
+<circle cx="65.0" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 1: 100,0 %</title></circle>
+<circle cx="108.1" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 5: 100,0 %</title></circle>
+<circle cx="151.2" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 9: 100,0 %</title></circle>
+<circle cx="194.3" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 13: 100,0 %</title></circle>
+<circle cx="237.4" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 17: 100,0 %</title></circle>
+<circle cx="280.5" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 21: 100,0 %</title></circle>
+<circle cx="323.5" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 25: 100,0 %</title></circle>
+<circle cx="366.6" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 29: 100,0 %</title></circle>
+<circle cx="452.8" cy="34.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 37: 100,0 %</title></circle>
+<circle cx="539.0" cy="35.0" r="2.6" style="fill:var(--ok)"><title>RNN h = 256 · 45: 99,7 %</title></circle>
+<path d="M65.0,34.0 L108.1,34.0 L151.2,34.0 L194.3,34.0 L237.4,34.0 L280.5,34.0 L323.5,34.0 L366.6,40.4 L452.8,78.7 L539.0,98.2 L539.0,105.8 L452.8,80.0 L366.6,45.3 L323.5,35.1 L280.5,34.0 L237.4,34.0 L194.3,34.0 L151.2,34.0 L108.1,34.0 L65.0,34.0 Z" style="fill:var(--accent);opacity:.14;stroke:none"/>
+<path d="M65.0,34.0 L108.1,34.0 L151.2,34.0 L194.3,34.0 L237.4,34.0 L280.5,34.0 L323.5,34.6 L366.6,44.2 L452.8,79.5 L539.0,102.1" class="s-acc"/>
+<circle cx="65.0" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 1: 100,0 %</title></circle>
+<circle cx="108.1" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 5: 100,0 %</title></circle>
+<circle cx="151.2" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 9: 100,0 %</title></circle>
+<circle cx="194.3" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 13: 100,0 %</title></circle>
+<circle cx="237.4" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 17: 100,0 %</title></circle>
+<circle cx="280.5" cy="34.0" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 21: 100,0 %</title></circle>
+<circle cx="323.5" cy="34.6" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 25: 99,8 %</title></circle>
+<circle cx="366.6" cy="44.2" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 29: 97,1 %</title></circle>
+<circle cx="452.8" cy="79.5" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 37: 87,1 %</title></circle>
+<circle cx="539.0" cy="102.1" r="2.6" style="fill:var(--accent)"><title>RNN h = 128 · 45: 80,6 %</title></circle>
+<path d="M65.0,34.0 L108.1,34.0 L151.2,34.0 L194.3,34.0 L237.4,34.1 L280.5,35.2 L323.5,44.0 L366.6,54.3 L452.8,87.7 L539.0,103.8 L539.0,145.8 L452.8,121.6 L366.6,65.8 L323.5,55.4 L280.5,44.5 L237.4,34.6 L194.3,34.1 L151.2,34.0 L108.1,34.0 L65.0,34.0 Z" style="fill:var(--gold);opacity:.14;stroke:none"/>
+<path d="M65.0,34.0 L108.1,34.0 L151.2,34.0 L194.3,34.0 L237.4,34.2 L280.5,37.9 L323.5,48.4 L366.6,60.1 L452.8,102.8 L539.0,114.5" class="s-goldl"/>
+<circle cx="65.0" cy="34.0" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 1: 100,0 %</title></circle>
+<circle cx="108.1" cy="34.0" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 5: 100,0 %</title></circle>
+<circle cx="151.2" cy="34.0" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 9: 100,0 %</title></circle>
+<circle cx="194.3" cy="34.0" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 13: 100,0 %</title></circle>
+<circle cx="237.4" cy="34.2" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 17: 99,9 %</title></circle>
+<circle cx="280.5" cy="37.9" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 21: 98,9 %</title></circle>
+<circle cx="323.5" cy="48.4" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 25: 95,9 %</title></circle>
+<circle cx="366.6" cy="60.1" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 29: 92,6 %</title></circle>
+<circle cx="452.8" cy="102.8" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 37: 80,4 %</title></circle>
+<circle cx="539.0" cy="114.5" r="2.6" style="fill:var(--gold)"><title>LSTM h = 128 · 45: 77,1 %</title></circle>
+<path d="M65.0,34.0 L108.1,35.3 L151.2,89.8 L194.3,151.4 L237.4,209.9 L280.5,209.6 L323.5,210.0 L366.6,210.0" class="s-thin s-dash"/>
+<circle cx="65.0" cy="34.0" r="8" style="fill:transparent"><title>LSTM original · 1: 100,0 %</title></circle>
+<circle cx="108.1" cy="35.3" r="8" style="fill:transparent"><title>LSTM original · 5: 99,6 %</title></circle>
+<circle cx="151.2" cy="89.8" r="8" style="fill:transparent"><title>LSTM original · 9: 84,1 %</title></circle>
+<circle cx="194.3" cy="151.4" r="8" style="fill:transparent"><title>LSTM original · 13: 66,6 %</title></circle>
+<circle cx="237.4" cy="209.9" r="8" style="fill:transparent"><title>LSTM original · 17: 50,0 %</title></circle>
+<circle cx="280.5" cy="209.6" r="8" style="fill:transparent"><title>LSTM original · 21: 50,1 %</title></circle>
+<circle cx="323.5" cy="210.0" r="8" style="fill:transparent"><title>LSTM original · 25: 50,0 %</title></circle>
+<circle cx="366.6" cy="210.0" r="8" style="fill:transparent"><title>LSTM original · 29: 49,9 %</title></circle>
+<path d="M56 12 H72" class="s-okl"/>
+<text x="77" y="16" class="s-txt-2">RNN h = 256</text>
+<path d="M162.6 12 H178.6" class="s-acc"/>
+<text x="183.6" y="16" class="s-txt-2">RNN h = 128</text>
+<path d="M269.2 12 H285.2" class="s-goldl"/>
+<text x="290.2" y="16" class="s-txt-2">LSTM h = 128</text>
+<path d="M382.4 12 H398.4" class="s-thin s-dash"/>
+<text x="403.4" y="16" class="s-txt-2">LSTM original</text>
+</svg>
+<!--/CHART-->
+    </div><figcaption>Exactitud media según el retardo (banda: mínimo–máximo de 5 ejecuciones). En gris discontinuo, la LSTM del código original.</figcaption></figure>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Retardo</th><th class="num">17</th><th class="num">21</th><th class="num">25</th><th class="num">29</th><th class="num">37</th><th class="num">45</th></tr></thead>
+      <tbody>
+        <tr><td>RNN original (h = 32)</td><td class="num">66,5 %</td><td class="num">64,0 %</td><td class="num">52,9 %</td><td class="num">50,2 %</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td>LSTM original (h = 32)</td><td class="num">50,0 %</td><td class="num">50,1 %</td><td class="num">50,0 %</td><td class="num">49,9 %</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td><strong>RNN</strong> h = 128 (ortogonal)</td><td class="num">100 %</td><td class="num">100 %</td><td class="num">99,8 %</td><td class="num">97,1 %</td><td class="num">87,1 %</td><td class="num">80,6 %</td></tr>
+        <tr><td><strong>LSTM</strong> h = 128 (sesgo de olvido 3)</td><td class="num">99,9 %</td><td class="num">98,9 %</td><td class="num">95,9 %</td><td class="num">92,6 %</td><td class="num">80,4 %</td><td class="num">77,1 %</td></tr>
+        <tr><td><strong>RNN</strong> h = 256 (mismos parámetros)</td><td class="num">100 %</td><td class="num">100 %</td><td class="num">100 %</td><td class="num"><strong>100 %</strong></td><td class="num"><strong>100 %</strong></td><td class="num"><strong>99,7 %</strong></td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Lo que dice la comparación justa</div><ul>
+      <li>Las dos mejoran enormemente al original: con $d=29$, del 50 % al 93–97 %.</li>
+      <li><strong>En esta tarea gana la RNN ortogonal</strong>: mejor en todos los retardos largos, más estable entre semillas y, con los mismos parámetros, casi perfecta hasta $d=45$.</li>
+      <li><strong>Aprende mucho más deprisa</strong>: con $d=21$ llega a pérdida 0,001 en ≈ 40 épocas; la LSTM sigue bajando al final de las 100 (y una ejecución tiene un pico hacia la 93). Con el mismo presupuesto, pierde.</li>
+      <li><strong>La caída de la RNN coincide con su capacidad</strong>: con 128 unidades es perfecta hasta $d=25$ ($5d=125\le128$) y cae después; con 256, hasta $d=45$ ($225\le256$). Es lo esperable si ha aprendido una <strong>permutación que desplaza</strong> el estado oculto: una línea de retardo es justo eso.</li>
+    </ul></div>
+    <div class="fig-row" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr))">
+      <figure class="diagram"><div class="svg-scroll">
+<!--CHART:c_copia_pos-->
+<svg viewBox="0 0 440 220" width="440" role="img" aria-label="Exactitud por posición con d = 29">
+<path d="M56 180.0 H428" class="s-grid"/>
+<text x="50" y="184.0" text-anchor="end" class="s-mut">85 %</text>
+<path d="M56 131.3 H428" class="s-grid"/>
+<text x="50" y="135.3" text-anchor="end" class="s-mut">90 %</text>
+<path d="M56 82.7 H428" class="s-grid"/>
+<text x="50" y="86.7" text-anchor="end" class="s-mut">95 %</text>
+<path d="M56 34.0 H428" class="s-grid"/>
+<text x="50" y="38.0" text-anchor="end" class="s-mut">100 %</text>
+<path d="M56 34 V180 H428" class="s-thin"/>
+<text x="65.0" y="195" text-anchor="middle" class="s-mut">1</text>
+<text x="115.6" y="195" text-anchor="middle" class="s-mut">5</text>
+<text x="178.8" y="195" text-anchor="middle" class="s-mut">10</text>
+<text x="242.0" y="195" text-anchor="middle" class="s-mut">15</text>
+<text x="305.2" y="195" text-anchor="middle" class="s-mut">20</text>
+<text x="368.4" y="195" text-anchor="middle" class="s-mut">25</text>
+<text x="419.0" y="195" text-anchor="middle" class="s-mut">29</text>
+<text x="242.0" y="214" text-anchor="middle" class="s-mut">posición k (entrada del paso k)</text>
+<text x="11" y="107.0" text-anchor="middle" class="s-mut" transform="rotate(-90 11 107.0)">exactitud</text>
+<path d="M65.0,34.0 L77.6,34.0 L90.3,34.0 L102.9,34.0 L115.6,34.0 L128.2,34.0 L140.9,34.0 L153.5,34.0 L166.1,34.0 L178.8,34.0 L191.4,34.0 L204.1,34.0 L216.7,34.0 L229.4,34.0 L242.0,34.0 L254.6,34.0 L267.3,34.0 L279.9,34.0 L292.6,34.0 L305.2,34.0 L317.9,34.0 L330.5,34.0 L343.1,34.0 L355.8,34.0 L368.4,34.0 L381.1,34.0 L393.7,34.0 L406.4,34.0 L419.0,34.0" class="s-okl"/>
+<circle cx="65.0" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 1: 100,0 %</title></circle>
+<circle cx="77.6" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 2: 100,0 %</title></circle>
+<circle cx="90.3" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 3: 100,0 %</title></circle>
+<circle cx="102.9" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 4: 100,0 %</title></circle>
+<circle cx="115.6" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 5: 100,0 %</title></circle>
+<circle cx="128.2" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 6: 100,0 %</title></circle>
+<circle cx="140.9" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 7: 100,0 %</title></circle>
+<circle cx="153.5" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 8: 100,0 %</title></circle>
+<circle cx="166.1" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 9: 100,0 %</title></circle>
+<circle cx="178.8" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 10: 100,0 %</title></circle>
+<circle cx="191.4" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 11: 100,0 %</title></circle>
+<circle cx="204.1" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 12: 100,0 %</title></circle>
+<circle cx="216.7" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 13: 100,0 %</title></circle>
+<circle cx="229.4" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 14: 100,0 %</title></circle>
+<circle cx="242.0" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 15: 100,0 %</title></circle>
+<circle cx="254.6" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 16: 100,0 %</title></circle>
+<circle cx="267.3" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 17: 100,0 %</title></circle>
+<circle cx="279.9" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 18: 100,0 %</title></circle>
+<circle cx="292.6" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 19: 100,0 %</title></circle>
+<circle cx="305.2" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 20: 100,0 %</title></circle>
+<circle cx="317.9" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 21: 100,0 %</title></circle>
+<circle cx="330.5" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 22: 100,0 %</title></circle>
+<circle cx="343.1" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 23: 100,0 %</title></circle>
+<circle cx="355.8" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 24: 100,0 %</title></circle>
+<circle cx="368.4" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 25: 100,0 %</title></circle>
+<circle cx="381.1" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 26: 100,0 %</title></circle>
+<circle cx="393.7" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 27: 100,0 %</title></circle>
+<circle cx="406.4" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 28: 100,0 %</title></circle>
+<circle cx="419.0" cy="34.0" r="8" style="fill:transparent"><title>RNN h = 256 · 29: 100,0 %</title></circle>
+<path d="M65.0,45.9 L77.6,50.1 L90.3,42.8 L102.9,51.0 L115.6,45.6 L128.2,51.3 L140.9,51.0 L153.5,55.6 L166.1,49.5 L178.8,50.7 L191.4,51.9 L204.1,52.6 L216.7,59.2 L229.4,55.0 L242.0,54.1 L254.6,52.9 L267.3,62.0 L279.9,50.7 L292.6,49.5 L305.2,47.4 L317.9,57.4 L330.5,52.6 L343.1,52.3 L355.8,49.8 L368.4,52.9 L381.1,50.1 L393.7,50.4 L406.4,53.5 L419.0,51.6" class="s-acc"/>
+<circle cx="65.0" cy="45.9" r="8" style="fill:transparent"><title>RNN h = 128 · 1: 98,8 %</title></circle>
+<circle cx="77.6" cy="50.1" r="8" style="fill:transparent"><title>RNN h = 128 · 2: 98,3 %</title></circle>
+<circle cx="90.3" cy="42.8" r="8" style="fill:transparent"><title>RNN h = 128 · 3: 99,1 %</title></circle>
+<circle cx="102.9" cy="51.0" r="8" style="fill:transparent"><title>RNN h = 128 · 4: 98,2 %</title></circle>
+<circle cx="115.6" cy="45.6" r="8" style="fill:transparent"><title>RNN h = 128 · 5: 98,8 %</title></circle>
+<circle cx="128.2" cy="51.3" r="8" style="fill:transparent"><title>RNN h = 128 · 6: 98,2 %</title></circle>
+<circle cx="140.9" cy="51.0" r="8" style="fill:transparent"><title>RNN h = 128 · 7: 98,2 %</title></circle>
+<circle cx="153.5" cy="55.6" r="8" style="fill:transparent"><title>RNN h = 128 · 8: 97,8 %</title></circle>
+<circle cx="166.1" cy="49.5" r="8" style="fill:transparent"><title>RNN h = 128 · 9: 98,4 %</title></circle>
+<circle cx="178.8" cy="50.7" r="8" style="fill:transparent"><title>RNN h = 128 · 10: 98,3 %</title></circle>
+<circle cx="191.4" cy="51.9" r="8" style="fill:transparent"><title>RNN h = 128 · 11: 98,2 %</title></circle>
+<circle cx="204.1" cy="52.6" r="8" style="fill:transparent"><title>RNN h = 128 · 12: 98,1 %</title></circle>
+<circle cx="216.7" cy="59.2" r="8" style="fill:transparent"><title>RNN h = 128 · 13: 97,4 %</title></circle>
+<circle cx="229.4" cy="55.0" r="8" style="fill:transparent"><title>RNN h = 128 · 14: 97,8 %</title></circle>
+<circle cx="242.0" cy="54.1" r="8" style="fill:transparent"><title>RNN h = 128 · 15: 97,9 %</title></circle>
+<circle cx="254.6" cy="52.9" r="8" style="fill:transparent"><title>RNN h = 128 · 16: 98,1 %</title></circle>
+<circle cx="267.3" cy="62.0" r="8" style="fill:transparent"><title>RNN h = 128 · 17: 97,1 %</title></circle>
+<circle cx="279.9" cy="50.7" r="8" style="fill:transparent"><title>RNN h = 128 · 18: 98,3 %</title></circle>
+<circle cx="292.6" cy="49.5" r="8" style="fill:transparent"><title>RNN h = 128 · 19: 98,4 %</title></circle>
+<circle cx="305.2" cy="47.4" r="8" style="fill:transparent"><title>RNN h = 128 · 20: 98,6 %</title></circle>
+<circle cx="317.9" cy="57.4" r="8" style="fill:transparent"><title>RNN h = 128 · 21: 97,6 %</title></circle>
+<circle cx="330.5" cy="52.6" r="8" style="fill:transparent"><title>RNN h = 128 · 22: 98,1 %</title></circle>
+<circle cx="343.1" cy="52.3" r="8" style="fill:transparent"><title>RNN h = 128 · 23: 98,1 %</title></circle>
+<circle cx="355.8" cy="49.8" r="8" style="fill:transparent"><title>RNN h = 128 · 24: 98,4 %</title></circle>
+<circle cx="368.4" cy="52.9" r="8" style="fill:transparent"><title>RNN h = 128 · 25: 98,1 %</title></circle>
+<circle cx="381.1" cy="50.1" r="8" style="fill:transparent"><title>RNN h = 128 · 26: 98,3 %</title></circle>
+<circle cx="393.7" cy="50.4" r="8" style="fill:transparent"><title>RNN h = 128 · 27: 98,3 %</title></circle>
+<circle cx="406.4" cy="53.5" r="8" style="fill:transparent"><title>RNN h = 128 · 28: 98,0 %</title></circle>
+<circle cx="419.0" cy="51.6" r="8" style="fill:transparent"><title>RNN h = 128 · 29: 98,2 %</title></circle>
+<path d="M65.0,44.6 L77.6,82.4 L90.3,72.0 L102.9,84.8 L115.6,132.2 L128.2,134.4 L140.9,137.1 L153.5,100.9 L166.1,106.4 L178.8,103.7 L191.4,81.5 L204.1,95.7 L216.7,114.6 L229.4,101.2 L242.0,110.6 L254.6,124.6 L267.3,104.6 L279.9,66.9 L292.6,62.6 L305.2,76.9 L317.9,94.8 L330.5,101.8 L343.1,81.5 L355.8,89.4 L368.4,84.8 L381.1,72.9 L393.7,58.3 L406.4,46.2 L419.0,44.6" class="s-goldl"/>
+<circle cx="65.0" cy="44.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 1: 98,9 %</title></circle>
+<circle cx="77.6" cy="82.4" r="8" style="fill:transparent"><title>LSTM h = 128 · 2: 95,0 %</title></circle>
+<circle cx="90.3" cy="72.0" r="8" style="fill:transparent"><title>LSTM h = 128 · 3: 96,1 %</title></circle>
+<circle cx="102.9" cy="84.8" r="8" style="fill:transparent"><title>LSTM h = 128 · 4: 94,8 %</title></circle>
+<circle cx="115.6" cy="132.2" r="8" style="fill:transparent"><title>LSTM h = 128 · 5: 89,9 %</title></circle>
+<circle cx="128.2" cy="134.4" r="8" style="fill:transparent"><title>LSTM h = 128 · 6: 89,7 %</title></circle>
+<circle cx="140.9" cy="137.1" r="8" style="fill:transparent"><title>LSTM h = 128 · 7: 89,4 %</title></circle>
+<circle cx="153.5" cy="100.9" r="8" style="fill:transparent"><title>LSTM h = 128 · 8: 93,1 %</title></circle>
+<circle cx="166.1" cy="106.4" r="8" style="fill:transparent"><title>LSTM h = 128 · 9: 92,6 %</title></circle>
+<circle cx="178.8" cy="103.7" r="8" style="fill:transparent"><title>LSTM h = 128 · 10: 92,8 %</title></circle>
+<circle cx="191.4" cy="81.5" r="8" style="fill:transparent"><title>LSTM h = 128 · 11: 95,1 %</title></circle>
+<circle cx="204.1" cy="95.7" r="8" style="fill:transparent"><title>LSTM h = 128 · 12: 93,7 %</title></circle>
+<circle cx="216.7" cy="114.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 13: 91,7 %</title></circle>
+<circle cx="229.4" cy="101.2" r="8" style="fill:transparent"><title>LSTM h = 128 · 14: 93,1 %</title></circle>
+<circle cx="242.0" cy="110.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 15: 92,1 %</title></circle>
+<circle cx="254.6" cy="124.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 16: 90,7 %</title></circle>
+<circle cx="267.3" cy="104.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 17: 92,8 %</title></circle>
+<circle cx="279.9" cy="66.9" r="8" style="fill:transparent"><title>LSTM h = 128 · 18: 96,6 %</title></circle>
+<circle cx="292.6" cy="62.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 19: 97,1 %</title></circle>
+<circle cx="305.2" cy="76.9" r="8" style="fill:transparent"><title>LSTM h = 128 · 20: 95,6 %</title></circle>
+<circle cx="317.9" cy="94.8" r="8" style="fill:transparent"><title>LSTM h = 128 · 21: 93,8 %</title></circle>
+<circle cx="330.5" cy="101.8" r="8" style="fill:transparent"><title>LSTM h = 128 · 22: 93,0 %</title></circle>
+<circle cx="343.1" cy="81.5" r="8" style="fill:transparent"><title>LSTM h = 128 · 23: 95,1 %</title></circle>
+<circle cx="355.8" cy="89.4" r="8" style="fill:transparent"><title>LSTM h = 128 · 24: 94,3 %</title></circle>
+<circle cx="368.4" cy="84.8" r="8" style="fill:transparent"><title>LSTM h = 128 · 25: 94,8 %</title></circle>
+<circle cx="381.1" cy="72.9" r="8" style="fill:transparent"><title>LSTM h = 128 · 26: 96,0 %</title></circle>
+<circle cx="393.7" cy="58.3" r="8" style="fill:transparent"><title>LSTM h = 128 · 27: 97,5 %</title></circle>
+<circle cx="406.4" cy="46.2" r="8" style="fill:transparent"><title>LSTM h = 128 · 28: 98,8 %</title></circle>
+<circle cx="419.0" cy="44.6" r="8" style="fill:transparent"><title>LSTM h = 128 · 29: 98,9 %</title></circle>
+<path d="M56 12 H72" class="s-okl"/>
+<text x="77" y="16" class="s-txt-2">RNN h = 256</text>
+<path d="M162.6 12 H178.6" class="s-acc"/>
+<text x="183.6" y="16" class="s-txt-2">RNN h = 128</text>
+<path d="M269.2 12 H285.2" class="s-goldl"/>
+<text x="290.2" y="16" class="s-txt-2">LSTM h = 128</text>
+</svg>
+<!--/CHART-->
+      </div><figcaption>Exactitud de cada posición con $d=29$ (primera ejecución de cada configuración).</figcaption></figure>
+      <div class="callout def" style="margin:0"><div class="ct">◆ Cómo recuerda cada una</div><ul>
+        <li>La <strong>RNN</strong> recuerda todas las posiciones por igual (≈ 98 % con 128, 100 % con 256): un <strong>registro de desplazamiento</strong>.</li>
+        <li>La <strong>LSTM</strong> tiene forma de <strong>U</strong>: ≈ 99 % en la primera y las últimas posiciones y ≈ 90 % en el centro. Escribe cada vector en celdas de memoria: <strong>primacía y recencia</strong>, como la memoria humana.</li>
+      </ul></div>
+    </div>
+
+    <div class="summary-box">
+      <h4>Resumen de la Parte I</h4>
+      <div class="kpis">
+        <div class="kpi"><b>50 % → 93 %</b><span>LSTM con d = 29: original → optimizada</span></div>
+        <div class="kpi"><b>σ(3) ≈ 0,95</b><span>puerta de olvido inicial que la despierta</span></div>
+        <div class="kpi"><b>97–100 %</b><span>RNN ortogonal con d = 29 (128 / 256 unidades)</span></div>
+        <div class="kpi"><b>5d ≤ h</b><span>límite de capacidad de la RNN</span></div>
+      </div>
+      <ul>
+        <li>Tarea: reproducir los bits con $d$ pasos de retraso; error solo en la segunda mitad; azar = 50 %. Aísla la memoria y fija la distancia del gradiente.</li>
+        <li>La LSTM salía peor porque, con la puerta de olvido en 0,5, se quedaba plana en la meseta de $\ln2$; la paciencia 3 y un error al guardar el mejor modelo empeoraban el resto.</li>
+        <li>Con su mejor inicialización y tasa, las dos resuelven retardos largos; en esta tarea (una permutación fija) gana la RNN ortogonal, más rápida y estable.</li>
+        <li>La fuerza de la LSTM es decidir qué guardar y cuándo olvidar; aquí no hace falta. Una comparación solo es justa si cada arquitectura recibe su inicialización y su tasa.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ PARTE II -->
+  <section id="l3b">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Parte II · Sentimiento IMDB">Parte II · Análisis de sentimiento en IMDB con LSTM</h2><span>PyTorch · L3_P2_IMDB_sentimiento_resuelta.ipynb</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Clasificar reseñas (texto) como positivas o negativas con una <strong>LSTM</strong> (o GRU para acelerar), con <code>IMDB Dataset10M.csv</code>.</li>
+          <li>Comparar <strong>embeddings aprendidos</strong> y <strong>GloVe</strong> (<code>glove.6B.100d.txt</code>).</li>
+          <li>Mostrar resultados, analizar <strong>reseñas cercanas al umbral</strong> y comparar los dos enfoques.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Código original ejecutado con las dos opciones de embedding y diagnosticado.</li>
+          <li>Arreglos y mejoras medidos con <strong>3 semillas</strong> en validación, con el <strong>mismo test</strong> de 6 000 reseñas que el original.</li>
+          <li>Una LSTM bidireccional que no lee el relleno, comprobada contra <code>pack_padded_sequence</code>.</li>
+          <li>Comparación final aprendido / GloVe congelado / GloVe ajustado, efecto de la cantidad de datos, reseñas dudosas y vecinos en los embeddings.</li></ul></div>
+      </div>
+    </div>
+
+    <h3 id="l3b-codigo">El código proporcionado</h3>
+    <div class="nb-step" data-step="1">
+      <h4>Datos: solo 2 000 reseñas para entrenar</h4>
+      <p>10 000 reseñas (50,3 % positivas). La partición del código deja el <strong>60 % para test</strong> (6 000) y reparte las 4 000 restantes <strong>a partes iguales</strong> entre entrenamiento y validación.</p>
+    </div>
+    <div class="nb-step" data-step="2">
+      <h4>Preprocesado, vocabulario y relleno</h4>
+<pre data-code="Preprocesado y Dataset (original)">
+text = re.sub(r'&lt;[^&gt;]+&gt;', '', text)                  # quita &lt;br /&gt; ... sin dejar espacio
+text = re.sub(r'[^a-zA-Z\s]', '', text, re.I|re.A)  # ⚠️ el 4.º argumento es count, no flags
+tokens = [w for w in word_tokenize(text.lower()) if w not in stop_words]   # stopwords de NLTK
+
+if len(indexed) &lt; max_length:                      # MAX_LENGTH = 100
+    indexed = indexed + [PAD] * (max_length - len(indexed))   # relleno AL FINAL
+else:
+    indexed = indexed[:max_length]                  # truncado: los 100 primeros tokens
+</pre>
+      <p class="code-note">Vocabulario: palabras con al menos 5 apariciones (10 194). <code>&lt;PAD&gt;</code> = 0 y <code>&lt;UNK&gt;</code> = 1. La mediana es de 88 tokens: el <strong>57,5 %</strong> de las reseñas se rellena y el <strong>42,1 %</strong> se trunca.</p>
+    </div>
+    <div class="nb-step" data-step="3">
+      <h4>El modelo: embedding → LSTM bidireccional de 2 capas → sigmoide</h4>
+<pre data-code="SentimentLSTM (original)">
+self.embedding = nn.Embedding(vocab_size, 100, padding_idx=0)
+if USE_GLOVE == 1:
+    self.embedding.weight.data.copy_(glove_embeddings)    # ⚠️ también sobrescribe la fila de &lt;PAD&gt;
+    if freeze_embeddings: self.embedding.weight.requires_grad = False
+self.lstm = nn.LSTM(100, 128, num_layers=2, bidirectional=True, dropout=0.5, batch_first=True)
+...
+hidden_cat = torch.cat((hidden[-2], hidden[-1]), dim=1)   # último estado: adelante y atrás (256)
+return self.sigmoid(self.fc(self.dropout(hidden_cat)))     # P(positiva); BCELoss; Adam 0,001; 5 épocas
+</pre>
+      <p class="code-note"><strong>Aprendido</strong> (<code>USE_GLOVE = 0</code>): los vectores empiezan aleatorios y se entrenan (≈ 1 millón de pesos con 2 000 reseñas). <strong>GloVe</strong>: se cargan los vectores preentrenados; las palabras que no están (202, el 2 %) se quedan con un vector aleatorio. El cuaderno se entrega con GloVe <strong>congelado</strong>.</p>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Código original (test, 6 000 reseñas)</th><th class="num">Test</th><th class="num">Entren. (época 5)</th><th class="num">Valid. (época 5)</th><th>Reseñas de ejemplo (pos. / neg.)</th></tr></thead>
+      <tbody>
+        <tr><td>GloVe congelado (como se entrega)</td><td class="num"><strong>72,2 %</strong></td><td class="num">77,4 %</td><td class="num">72,8 %</td><td>0,72 / 0,15 ✓</td></tr>
+        <tr><td>Embedding aprendido</td><td class="num"><strong>66,0 %</strong></td><td class="num">87,7 %</td><td class="num">65,5 %</td><td>0,94 / 0,79 ✗ (las dos «positivas»)</td></tr>
+      </tbody>
+    </table></div>
+    <p>El embedding aprendido <strong>sobreajusta</strong> enseguida: su mejor validación es la de la época 2 y la pérdida sube después. GloVe apenas sobreajusta. El cuaderno entregado tenía un 76,6 % con GloVe: con 2 000 reseñas y 5 épocas el resultado depende mucho de la semilla, y por eso todo lo que sigue se mide con 3 semillas.</p>
+
+    <h3 id="l3b-diag">Diagnóstico</h3>
+    <div class="compare">
+      <div><h5>El relleno y el último estado</h5><p><code>nn.LSTM</code> no sabe qué es relleno. La dirección <strong>hacia delante</strong> lee la reseña y luego decenas de <code>&lt;PAD&gt;</code>; la <strong>hacia atrás</strong> empieza por ellos. Con GloVe, <code>copy_</code> sobrescribe la fila 0: el vector de <code>&lt;PAD&gt;</code> tiene <strong>norma 0,29</strong> (aleatorio y congelado).</p></div>
+      <div><h5>El preprocesado</h5><ul>
+        <li>Las stopwords de NLTK incluyen <strong>not, no, nor, but, very, too, against</strong>: «The film was not good.» → <code>['film', 'good']</code>.</li>
+        <li><code>&lt;br /&gt;</code> se borra sin espacio: «film.&lt;br /&gt;The» → <code>filmthe</code>.</li>
+        <li><code>re.sub(..., re.I|re.A)</code> pasa 258 como <code>count</code>: solo se quitan los 258 primeros signos (afecta a 9 reseñas).</li></ul></div>
+    </div>
+<!--CHART:c_imdb_tramos-->
+<div class="bars"><h5>Código original: exactitud en test según la longitud de la reseña</h5><p class="sub">Modelo GloVe congelado tal como se entrega (entre paréntesis, reseñas del test). Con 100 tokens, el 57,5 % se rellena y el 42,1 % se trunca.</p>
+<div class="bar-row win"><span class="lbl" title="&lt; 25 tokens (116)">&lt; 25 tokens (116)</span><div class="track"><div class="fill" style="width:81.0%"></div></div><span class="val">81,0 %</span></div>
+<div class="bar-row "><span class="lbl" title="25–49 (585)">25–49 (585)</span><div class="track"><div class="fill" style="width:78.8%"></div></div><span class="val">78,8 %</span></div>
+<div class="bar-row "><span class="lbl" title="50–74 (1 622)">50–74 (1 622)</span><div class="track"><div class="fill" style="width:73.6%"></div></div><span class="val">73,6 %</span></div>
+<div class="bar-row "><span class="lbl" title="75–99 (1 124)">75–99 (1 124)</span><div class="track"><div class="fill" style="width:70.6%"></div></div><span class="val">70,6 %</span></div>
+<div class="bar-row "><span class="lbl" title="≥ 100, truncada (2 553)">≥ 100, truncada (2 553)</span><div class="track"><div class="fill" style="width:70.0%"></div></div><span class="val">70,0 %</span></div>
+</div>
+<!--/CHART-->
+    <div class="callout key"><div class="ct">◆ Sorpresa: las reseñas cortas no son las peores</div><p>Son las <strong>mejores</strong> (81 % con menos de 25 tokens frente al 70 % de las truncadas). La dirección hacia atrás empieza por el relleno pero <strong>termina leyendo la reseña entera</strong>, así que <code>hidden[-1]</code> sí la resume: la bidireccional salva parte del problema. Las truncadas pierden su final, donde muchas reseñas dan el veredicto. El efecto del relleno se mide arreglándolo, en el experimento 1.</p></div>
+
+    <h3 id="l3b-mejoras">Mejoras</h3>
+    <div class="nb-step" data-step="4">
+      <h4>Una bidireccional que no lee el relleno</h4>
+<pre data-code="Bidireccional (cuaderno resuelto)">
+ha, _ = self.adelante[k](x)                                  # adelante: causal, se toma la salida en longitud − 1
+hb = invertir(self.atras[k](invertir(x, longs))[0], longs)   # atrás: cada reseña invertida dentro de su longitud
+x = torch.cat([ha, hb], dim=-1)                              # entrada de la capa siguiente (con dropout)
+...
+return torch.cat([ha[longitud − 1], hb[:, 0]], dim=1)        # mismos estados finales que con pack_padded_sequence
+</pre>
+      <p class="code-note"><code>pack_padded_sequence</code> es la solución estándar, pero en la GPU de Apple (MPS) es unas 8 veces más lenta. Esta versión con dos LSTM unidireccionales por capa da <strong>exactamente</strong> el mismo resultado (comprobado con los mismos pesos, para LSTM y GRU) a la velocidad de la LSTM sin empaquetar. Además, la fila de <code>&lt;PAD&gt;</code> se pone a cero.</p>
+    </div>
+    <div class="nb-step" data-step="5">
+      <h4>Preprocesado corregido</h4>
+<pre data-code="preprocesar (cuaderno resuelto)">
+texto = re.sub(r'&lt;[^&gt;]+&gt;', ' ', texto).lower()                 # &lt;br /&gt; → espacio
+texto = texto.replace("n't", ' not')                             # didn't → did not
+texto = re.sub(r'[^a-z\s]', ' ', texto)                          # solo letras (sin el count accidental)
+tokens = [w for w in texto.split() if w not in STOP - CONSERVAR] # se conservan no, not, nor, but, very, too…
+</pre>
+      <p class="code-note">«Not bad at all, but too long.» → <code>['not', 'bad', 'but', 'too', 'long']</code> (antes: <code>['bad', 'long']</code>). Con el texto limpio, el 99,6 % del vocabulario tiene vector GloVe (antes, el 98 %).</p>
+    </div>
+    <p><strong>Experimento 1: arreglos acumulativos</strong> (exactitud en validación, media de 3 semillas; test entre paréntesis).</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Paso</th><th class="num">Aprendido</th><th class="num">GloVe congelado</th></tr></thead>
+      <tbody>
+        <tr><td>P0 · original</td><td class="num">67,3 % (67,9 %)</td><td class="num">71,2 % (70,5 %)</td></tr>
+        <tr><td>P1 · + sin leer el relleno, <code>&lt;PAD&gt;</code> = 0</td><td class="num">68,3 % (69,6 %)</td><td class="num"><strong>75,5 %</strong> (75,3 %)</td></tr>
+        <tr><td>P2 · + preprocesado corregido</td><td class="num">68,3 % (68,9 %)</td><td class="num">75,2 % (74,5 %)</td></tr>
+        <tr><td>P3 · + 3 000 / 1 000 y parada temprana</td><td class="num"><strong>72,1 %</strong> (73,4 %)</td><td class="num"><strong>78,3 %</strong> (78,4 %)</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li><strong>No leer el relleno</strong>: +4,3 puntos con GloVe y la mitad de variación entre semillas; con el aprendido solo +1. Sugiere que lo que más dañaba era el <strong>vector aleatorio de <code>&lt;PAD&gt;</code></strong> (en el aprendido, <code>padding_idx</code> ya lo dejaba a cero).</li>
+      <li><strong>Preprocesado corregido</strong>: sin efecto medible con 5 épocas fijas (≤ 0,6 puntos, dentro del ruido). Se mantiene porque corrige errores reales; el experimento de stopwords lo vuelve a medir.</li>
+      <li><strong>Más datos y parada temprana</strong>: +3,8 (aprendido) y +3,1 (GloVe). El aprendido sigue sobreajustando antes (mejor época ≈ 4 frente a 9).</li>
+      <li>En total, en test: GloVe congelado <strong>70,5 % → 78,4 %</strong>, aprendido <strong>67,9 % → 73,4 %</strong>, con la misma arquitectura.</li>
+    </ul>
+
+    <p><strong>Experimento 2: longitud máxima</strong> (validación, 3 semillas).</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Tokens que ve la red</th><th class="num">Aprendido</th><th class="num">GloVe congelado</th><th class="num">s / entrenamiento</th></tr></thead>
+      <tbody>
+        <tr><td>100 (principio)</td><td class="num">72,1 %</td><td class="num">78,3 %</td><td class="num">58</td></tr>
+        <tr><td><strong>200 (principio)</strong></td><td class="num">73,8 %</td><td class="num"><strong>80,4 %</strong></td><td class="num">105</td></tr>
+        <tr><td>400 (principio)</td><td class="num">73,9 %</td><td class="num">78,7 %</td><td class="num">136</td></tr>
+        <tr><td>200 (final)</td><td class="num">72,7 %</td><td class="num">76,7 %</td><td class="num">79</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>De 100 a 200 tokens: +1,7 (aprendido) y +2,1 (GloVe). Con 400 no se gana nada más y tarda un 30 % más.</li>
+      <li>Quedarse con el <strong>final</strong> es peor que con el principio (−3,7 con GloVe): la idea de que «el veredicto está al final» no se confirma aquí.</li>
+    </ul>
+
+    <p><strong>Experimento 3: qué <em>stopwords</em> quitar</strong> (validación, 3 semillas).</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Stopwords</th><th class="num">Aprendido</th><th class="num">GloVe congelado</th></tr></thead>
+      <tbody>
+        <tr><td>lista NLTK completa</td><td class="num">69,0 %</td><td class="num">79,0 %</td></tr>
+        <tr><td><strong>NLTK sin negaciones ni intensificadores</strong></td><td class="num"><strong>73,7 %</strong></td><td class="num"><strong>80,4 %</strong></td></tr>
+        <tr><td>no quitar ninguna</td><td class="num">61,6 %</td><td class="num">71,0 %</td></tr>
+      </tbody>
+    </table></div>
+    <p>Conservar negaciones e intensificadores gana con los dos (+4,7 y +1,4): ahora, con parada temprana, se ve el efecto que en el experimento 1 tapaba el ruido. No quitar ninguna es mucho peor (−12 y −9): las reseñas casi duplican su longitud (mediana de 174 tokens frente a 93) y la red ve una parte menor de cada una.</p>
+    <p><strong>Experimento 4: arquitectura</strong> (validación, 3 semillas).</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Arquitectura</th><th class="num">Aprendido</th><th class="num">GloVe congelado</th><th class="num">s / entrenamiento</th></tr></thead>
+      <tbody>
+        <tr><td>LSTM bidireccional, 2 capas (la del original)</td><td class="num"><strong>73,7 %</strong></td><td class="num">80,4 % ± 2,8</td><td class="num">158</td></tr>
+        <tr><td><strong>GRU bidireccional, 2 capas</strong></td><td class="num">72,0 %</td><td class="num"><strong>82,4 % ± 0,8</strong></td><td class="num">216</td></tr>
+        <tr><td>LSTM bidireccional, 1 capa</td><td class="num">73,0 %</td><td class="num">77,0 %</td><td class="num">23</td></tr>
+        <tr><td>LSTM unidireccional, 1 capa</td><td class="num">72,6 %</td><td class="num">70,9 %</td><td class="num">8</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>Gana la <strong>GRU</strong> (por la media de los dos embeddings), con mucha menos variación entre semillas con GloVe.</li>
+      <li><strong>Aquí la GRU no es más rápida</strong>, aunque tenga un 25 % menos de parámetros: la GPU de Apple tiene un núcleo optimizado para la LSTM y no para la GRU. La ventaja teórica depende de la implementación.</li>
+      <li>Con GloVe cuentan la <strong>bidireccionalidad</strong> (+6,1) y la <strong>segunda capa</strong> (+3,4). Con el aprendido las cuatro quedan en 72–74 %: el límite está en el embedding.</li>
+    </ul>
+    <div class="nb-step" data-step="★">
+      <h4>Configuración final</h4>
+      <p>Preprocesado corregido (conserva negaciones), 200 primeros tokens, 3 000 / 1 000, GRU bidireccional de 2 capas de 128, dropout 0,5, Adam 0,001, lotes de 64, hasta 20 épocas con paciencia 3, sin leer el relleno y <code>&lt;PAD&gt;</code> = 0.</p>
+    </div>
+
+    <h3 id="l3b-final">Aprendido frente a GloVe</h3>
+<!--CHART:c_imdb_final-->
+<div class="bars"><h5>Exactitud en test (6 000 reseñas)</h5><p class="sub">GRU bidireccional final, media de 5 semillas; la referencia TF-IDF + regresión logística no es recurrente (bolsa de palabras).</p>
+<div class="bar-row ref"><span class="lbl" title="código original · aprendido">código original · aprendido</span><div class="track"><div class="fill" style="width:66.0%"></div></div><span class="val">66,0 %</span></div>
+<div class="bar-row ref"><span class="lbl" title="código original · GloVe congelado">código original · GloVe congelado</span><div class="track"><div class="fill" style="width:72.2%"></div></div><span class="val">72,2 %</span></div>
+<div class="bar-row "><span class="lbl" title="final · aprendido">final · aprendido</span><div class="track"><div class="fill" style="width:71.1%"></div></div><span class="val">71,1 %</span></div>
+<div class="bar-row "><span class="lbl" title="final · GloVe congelado">final · GloVe congelado</span><div class="track"><div class="fill" style="width:82.0%"></div></div><span class="val">82,0 %</span></div>
+<div class="bar-row win"><span class="lbl" title="final · GloVe ajustado">final · GloVe ajustado</span><div class="track"><div class="fill" style="width:82.1%"></div></div><span class="val">82,1 %</span></div>
+<div class="bar-row ref"><span class="lbl" title="TF-IDF + regresión logística">TF-IDF + regresión logística</span><div class="track"><div class="fill" style="width:87.7%"></div></div><span class="val">87,7 %</span></div>
+</div>
+<!--/CHART-->
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Embedding (5 semillas)</th><th class="num">Test</th><th class="num">Mejor época</th><th class="num">Parámetros entrenables</th><th class="num">s / época</th></tr></thead>
+      <tbody>
+        <tr><td>Aprendido</td><td class="num">71,1 % ± 1,3</td><td class="num">3,4</td><td class="num">1 509 245</td><td class="num">26</td></tr>
+        <tr><td><strong>GloVe congelado</strong></td><td class="num"><strong>82,0 % ± 0,5</strong></td><td class="num">6,4</td><td class="num"><strong>473 345</strong></td><td class="num">21</td></tr>
+        <tr><td>GloVe ajustado</td><td class="num">82,1 % ± 0,6</td><td class="num">3,4</td><td class="num">1 509 245</td><td class="num">55</td></tr>
+      </tbody>
+    </table></div>
+    <div class="compare">
+      <div><h5>Embedding aprendido</h5><ul>
+        <li>11 puntos por debajo y más variable.</li>
+        <li><strong>Sobreajusta</strong> desde la época 3: la pérdida de validación se dispara mientras la exactitud apenas cambia.</li>
+        <li>Sus vecinas no tienen relación semántica («good» → sophomoric, nu, created, king…): cada vector solo se mueve lo justo para separar el entrenamiento.</li></ul></div>
+      <div><h5>GloVe</h5><ul>
+        <li><strong>Congelado</strong>: el mejor equilibrio. No sobreajusta y entrena 3,2 veces menos parámetros.</li>
+        <li><strong>Ajustado</strong>: no aporta nada (82,1 %), tarda 2,6 veces más por época y sus vecinas apenas cambian.</li>
+        <li>Pero <strong>«good» y «bad» son vecinas</strong> (coseno 0,77, igual que «good»–«great»): GloVe aprende de los contextos, y los antónimos comparten contexto. La polaridad la tiene que poner la red.</li></ul></div>
+    </div>
+    <div class="callout warn"><div class="ct">✕ La bolsa de palabras gana</div><p>Una <strong>regresión logística sobre TF-IDF</strong> (unigramas y bigramas, mismas 3 000 reseñas) obtiene un <strong>87,7 %</strong>, 5,6 puntos más que la mejor red recurrente. Con tan pocos datos, el sentimiento lo deciden sobre todo <strong>qué palabras aparecen</strong>, y leer en orden no compensa. Conviene comparar siempre con una referencia así.</p></div>
+    <figure class="diagram"><div class="svg-scroll">
+<!--CHART:c_imdb_datos-->
+<svg viewBox="0 0 440 230" width="440" role="img" aria-label="Exactitud según el número de reseñas">
+<path d="M56 190.0 H428" class="s-grid"/>
+<text x="50" y="194.0" text-anchor="end" class="s-mut">50 %</text>
+<path d="M56 151.0 H428" class="s-grid"/>
+<text x="50" y="155.0" text-anchor="end" class="s-mut">60 %</text>
+<path d="M56 112.0 H428" class="s-grid"/>
+<text x="50" y="116.0" text-anchor="end" class="s-mut">70 %</text>
+<path d="M56 73.0 H428" class="s-grid"/>
+<text x="50" y="77.0" text-anchor="end" class="s-mut">80 %</text>
+<path d="M56 34.0 H428" class="s-grid"/>
+<text x="50" y="38.0" text-anchor="end" class="s-mut">90 %</text>
+<path d="M56 34 V190 H428" class="s-thin"/>
+<text x="65.0" y="205" text-anchor="middle" class="s-mut">250</text>
+<text x="163.7" y="205" text-anchor="middle" class="s-mut">500</text>
+<text x="262.5" y="205" text-anchor="middle" class="s-mut">1000</text>
+<text x="361.2" y="205" text-anchor="middle" class="s-mut">2000</text>
+<text x="419.0" y="205" text-anchor="middle" class="s-mut">3000</text>
+<text x="242.0" y="224" text-anchor="middle" class="s-mut">reseñas de entrenamiento (escala log.)</text>
+<text x="11" y="112.0" text-anchor="middle" class="s-mut" transform="rotate(-90 11 112.0)">exactitud en test</text>
+<path d="M65.0,173.8 L163.7,169.3 L262.5,158.3 L361.2,132.2 L419.0,102.4" class="s-acc"/>
+<circle cx="65.0" cy="173.8" r="2.6" style="fill:var(--accent)"><title>aprendido · 250: 54,2 %</title></circle>
+<circle cx="163.7" cy="169.3" r="2.6" style="fill:var(--accent)"><title>aprendido · 500: 55,3 %</title></circle>
+<circle cx="262.5" cy="158.3" r="2.6" style="fill:var(--accent)"><title>aprendido · 1000: 58,1 %</title></circle>
+<circle cx="361.2" cy="132.2" r="2.6" style="fill:var(--accent)"><title>aprendido · 2000: 64,8 %</title></circle>
+<circle cx="419.0" cy="102.4" r="2.6" style="fill:var(--accent)"><title>aprendido · 3000: 72,5 %</title></circle>
+<path d="M65.0,126.1 L163.7,114.6 L262.5,86.6 L361.2,75.1 L419.0,64.0" class="s-goldl"/>
+<circle cx="65.0" cy="126.1" r="2.6" style="fill:var(--gold)"><title>GloVe congelado · 250: 66,4 %</title></circle>
+<circle cx="163.7" cy="114.6" r="2.6" style="fill:var(--gold)"><title>GloVe congelado · 500: 69,3 %</title></circle>
+<circle cx="262.5" cy="86.6" r="2.6" style="fill:var(--gold)"><title>GloVe congelado · 1000: 76,5 %</title></circle>
+<circle cx="361.2" cy="75.1" r="2.6" style="fill:var(--gold)"><title>GloVe congelado · 2000: 79,5 %</title></circle>
+<circle cx="419.0" cy="64.0" r="2.6" style="fill:var(--gold)"><title>GloVe congelado · 3000: 82,3 %</title></circle>
+<path d="M65.0,125.0 L163.7,113.2 L262.5,99.1 L361.2,71.2 L419.0,64.9" class="s-okl s-dash"/>
+<circle cx="65.0" cy="125.0" r="2.6" style="fill:var(--ok)"><title>GloVe ajustado · 250: 66,7 %</title></circle>
+<circle cx="163.7" cy="113.2" r="2.6" style="fill:var(--ok)"><title>GloVe ajustado · 500: 69,7 %</title></circle>
+<circle cx="262.5" cy="99.1" r="2.6" style="fill:var(--ok)"><title>GloVe ajustado · 1000: 73,3 %</title></circle>
+<circle cx="361.2" cy="71.2" r="2.6" style="fill:var(--ok)"><title>GloVe ajustado · 2000: 80,5 %</title></circle>
+<circle cx="419.0" cy="64.9" r="2.6" style="fill:var(--ok)"><title>GloVe ajustado · 3000: 82,1 %</title></circle>
+<path d="M56 12 H72" class="s-acc"/>
+<text x="77" y="16" class="s-txt-2">aprendido</text>
+<path d="M149.4 12 H165.4" class="s-goldl"/>
+<text x="170.4" y="16" class="s-txt-2">GloVe congelado</text>
+<path d="M282.4 12 H298.4" class="s-okl s-dash"/>
+<text x="303.4" y="16" class="s-txt-2">GloVe ajustado</text>
+</svg>
+<!--/CHART-->
+    </div><figcaption>Exactitud en test según el número de reseñas de entrenamiento (2 semillas, mismo test). GloVe congelado con 1 000 reseñas (76,5 %) supera al aprendido con 3 000 (72,5 %); con 250–500 el aprendido apenas pasa del azar.</figcaption></figure>
+
+    <h3 id="l3b-umbral">Reseñas cercanas al umbral</h3>
+    <div class="kpis" style="margin:0 0 1rem">
+      <div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b style="color:var(--ink)">7,5–10 %</b><span style="color:var(--muted)">reseñas con p entre 0,4 y 0,6</span></div>
+      <div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b style="color:var(--ink)">54–57 %</b><span style="color:var(--muted)">exactitud en esa franja (azar)</span></div>
+      <div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b style="color:var(--ink)">85–86 %</b><span style="color:var(--muted)">exactitud fuera de ella (GloVe)</span></div>
+      <div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b style="color:var(--ink)">25,7 %</b><span style="color:var(--muted)">reseñas en que discrepan aprendido y GloVe ajustado</span></div>
+    </div>
+    <p>Las probabilidades tienen forma de U (casi todas cerca de 0 o 1) y la exactitud crece de forma monótona con la confianza (más del 95 % con GloVe cuando $|p-0{,}5|>0{,}4$). Leyendo las seis reseñas más dudosas se ve <strong>por qué</strong> dudan:</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Real</th><th>Qué tiene</th><th class="num">Aprendido</th><th class="num">GloVe cong.</th></tr></thead>
+      <tbody>
+        <tr><td>positiva</td><td>Elogio con negaciones («could hardly have done a better job») y mucho resumen del argumento político</td><td class="num">0,24</td><td class="num">0,39</td></tr>
+        <tr><td>positiva</td><td>327 tokens: preámbulo sobre el museo de la universidad y el elogio al final, <strong>truncado</strong> (la red ve 200)</td><td class="num">0,54</td><td class="num">0,44</td></tr>
+        <tr><td>positiva</td><td>«This is <strong>not</strong> the stuff of soap-operas… trying to cope but <strong>not</strong> quite succeeding»</td><td class="num">0,30</td><td class="num">0,32</td></tr>
+        <tr><td>positiva</td><td>Mixta: «it's awesome. <strong>But</strong> … too much talk…» y datos del reparto</td><td class="num">0,05</td><td class="num">0,49</td></tr>
+        <tr><td>negativa</td><td><strong>Ironía</strong>: «the least scary film… i recommend you do, its far too funny to be taken seriously»</td><td class="num">0,76</td><td class="num">0,36</td></tr>
+        <tr><td>positiva</td><td>Sobre un <strong>videojuego</strong> de terror («the best horror game»), vocabulario de miedo</td><td class="num">0,08</td><td class="num">0,91</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Reseñas escritas a mano</strong> (probabilidad de «positiva»):</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Reseña</th><th class="num">Aprendido</th><th class="num">GloVe cong.</th><th class="num">GloVe ajust.</th><th class="num">Original</th></tr></thead>
+      <tbody>
+        <tr><td>«This movie was fantastic! … I would recommend this to everyone.»</td><td class="num">0,35 ✗</td><td class="num">0,98</td><td class="num">0,85</td><td class="num">0,72</td></tr>
+        <tr><td>«What a waste of time. … I would not watch this again.»</td><td class="num">0,01</td><td class="num">0,01</td><td class="num">0,01</td><td class="num">0,15</td></tr>
+        <tr><td>«The movie was not good.»</td><td class="num">0,36</td><td class="num">0,52 ?</td><td class="num">0,48 ?</td><td class="num">0,57 ✗</td></tr>
+        <tr><td>«The movie was not bad at all, I actually enjoyed it.»</td><td class="num">0,07 ✗</td><td class="num">0,27 ✗</td><td class="num">0,13 ✗</td><td class="num">0,39 ✗</td></tr>
+        <tr><td>«Boring at first, but the second half is brilliant and the ending is perfect.»</td><td class="num">0,12 ✗</td><td class="num">0,06 ✗</td><td class="num">0,13 ✗</td><td class="num">0,36 ✗</td></tr>
+        <tr><td>«Oh great, another two hours of my life I will never get back.»</td><td class="num">0,06</td><td class="num">0,61 ✗</td><td class="num">0,83 ✗</td><td class="num">0,75 ✗</td></tr>
+        <tr><td>«I expected a masterpiece. I got a mess.»</td><td class="num">0,37</td><td class="num">0,13</td><td class="num">0,14</td><td class="num">0,29</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout key"><div class="ct">◆ Cómo se comporta el modelo</div><p>Como una <strong>suma ponderada de palabras con carga de sentimiento</strong>. Aunque «not» ya llega a la red, con 3 000 reseñas no aprende a componerla («not bad» sale negativa), el contraste con «but» lo decide la palabra más fuerte y la ironía engaña a GloVe («Oh great…»). Las dudas aparecen con reseñas mixtas, irónicas, con elogios en forma negativa o truncadas.</p></div>
+
+    <div class="summary-box">
+      <h4>Resumen de la Parte II</h4>
+      <div class="kpis">
+        <div class="kpi"><b>72,2 % → 82,0 %</b><span>GloVe congelado: original → final (mismo test)</span></div>
+        <div class="kpi"><b>+11 puntos</b><span>GloVe frente a embedding aprendido</span></div>
+        <div class="kpi"><b>≈ 0</b><span>lo que aporta ajustar GloVe</span></div>
+        <div class="kpi"><b>87,7 %</b><span>TF-IDF + regresión logística</span></div>
+      </div>
+      <ul>
+        <li>Fallos del original: lee el relleno (y <code>&lt;PAD&gt;</code> es aleatorio en GloVe), borra las negaciones, pega palabras con <code>&lt;br /&gt;</code>, <code>re.sub</code> con <code>count</code> accidental, 2 000 reseñas y 5 épocas sin selección.</li>
+        <li>Lo que más aportó: no leer el relleno, más datos con parada temprana, 200 tokens, conservar negaciones y GRU bidireccional.</li>
+        <li>GloVe es decisivo con pocos datos; ajustarlo no ayuda con 3 000 reseñas. El aprendido sobreajusta y no aprende semántica.</li>
+        <li>Cerca del umbral el modelo acierta como el azar; falla con negaciones, contrastes e ironía, y una bolsa de palabras le gana.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ PARTE III -->
+  <section id="l3c">
+    <div class="practice-head">
+      <div class="ph-top"><h2 data-short="Parte III · Siguiente carácter">Parte III · Siguiente carácter con LSTM y GRU</h2><span>PyTorch · L3_P3_siguiente_caracter_resuelta.ipynb</span></div>
+      <div class="ph-body">
+        <div><h4>Qué se pedía</h4><ul>
+          <li>Usar modelos <strong>LSTM y GRU optimizados</strong> en el problema de siguiente carácter del Lab 2.</li>
+          <li>Reportar la <strong>perplejidad</strong> de cada uno y las diferencias con la <strong>RNN vanilla</strong>.</li></ul></div>
+        <div><h4>Cómo se ha hecho</h4><ul>
+          <li>Exactamente los datos y el protocolo del Lab 2: texto corregido, one-hot, ventanas de 20, partición 30/10/60, evaluación del carácter 21.</li>
+          <li>Optimización acumulativa de la LSTM y la GRU con 3 semillas, eligiendo por perplejidad en validación.</li>
+          <li>20 ejecuciones finales de RNN, LSTM y GRU con el mismo código; coste, contexto aprovechado y texto generado.</li></ul></div>
+      </div>
+    </div>
+    <p>Referencia del Lab 2 (RNN vanilla optimizada, 20 ejecuciones): <strong>49,46 % ± 0,24 %</strong> de exactitud y <strong>perplejidad 5,96 ± 0,10</strong> en test.</p>
+
+    <h3 id="l3c-ej1">Cambiar la RNN por una LSTM o una GRU, sin más</h3>
+    <p>Con la configuración final de la RNN del Lab 2 (256 unidades, inicialización He, sin dropout, Adam 0,01…), cambiando solo la capa recurrente (validación, 3 semillas):</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Arquitectura</th><th class="num">Perplejidad</th><th class="num">Exactitud</th><th class="num">Mejor época</th><th class="num">Parámetros</th></tr></thead>
+      <tbody>
+        <tr><td><strong>RNN</strong></td><td class="num"><strong>5,89</strong></td><td class="num"><strong>49,2 %</strong></td><td class="num">7,3</td><td class="num">80 412</td></tr>
+        <tr><td>LSTM</td><td class="num">6,28</td><td class="num">48,7 %</td><td class="num">1</td><td class="num">300 060</td></tr>
+        <tr><td>GRU</td><td class="num">6,48</td><td class="num">48,9 %</td><td class="num">1</td><td class="num">226 844</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn"><div class="ct">✕ Más capacidad no es mejor por sí sola</div><p>La LSTM y la GRU alcanzan su mejor validación <strong>en la primera época</strong> y luego solo sobreajustan. Con ventanas solapadas y 20 objetivos por ventana, una época son ≈ 1 millón de predicciones sobre un texto de 53 000 caracteres (unas 20 pasadas). Con tan poco texto, <strong>el reto de las redes con puertas es regularizar</strong>.</p></div>
+
+    <h3 id="l3c-opt">Optimización</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Paso acumulativo (perplejidad en validación, 3 semillas)</th><th class="num">LSTM</th><th class="num">GRU</th></tr></thead>
+      <tbody>
+        <tr><td>configuración de la RNN (inicialización He)</td><td class="num">6,28</td><td class="num">6,48</td></tr>
+        <tr><td>inicialización por defecto de PyTorch</td><td class="num">5,91</td><td class="num">6,16</td></tr>
+        <tr><td><strong>dropout 0,5</strong></td><td class="num">5,15</td><td class="num">5,29</td></tr>
+        <tr><td>tasa 0,01 (frente a 0,003)</td><td class="num">5,15</td><td class="num">5,29</td></tr>
+        <tr><td>neuronas ocultas</td><td class="num">5,14 (512)</td><td class="num">5,18 (128)</td></tr>
+        <tr><td>2 capas</td><td class="num">4,92</td><td class="num"><strong>5,14</strong></td></tr>
+        <tr><td>sesgo de olvido 1 (solo LSTM)</td><td class="num"><strong>4,90</strong></td><td class="num">—</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li><strong>El dropout es lo que más pesa</strong> (−0,76 y −0,87): el problema era el sobreajuste.</li>
+      <li><strong>He perjudica</strong> a las redes con puertas: está pensada para ReLU, y las puertas usan sigmoide y tanh.</li>
+      <li>El <strong>tamaño oculto</strong> y el <strong>sesgo de olvido</strong> apenas cambian nada. La LSTM elige 512 por 0,006 de perplejidad, dentro del ruido y al doble de coste. Con ventanas de 20 caracteres no hay dependencias largas que proteger.</li>
+    </ul>
+
+    <h3 id="l3c-final">20 ejecuciones de cada arquitectura</h3>
+<!--CHART:c_pp_final-->
+<div class="bars"><h5>Perplejidad en test (20 ejecuciones)</h5><p class="sub">Mismo texto, misma partición 30/10/60, ventanas de 20 caracteres y one-hot. Menor es mejor; uniforme = 28.</p>
+<div class="bar-row ref"><span class="lbl" title="3-grama (mejor n-grama, Lab 2)">3-grama (mejor n-grama, Lab 2)</span><div class="track"><div class="fill" style="width:91.0%"></div></div><span class="val">7,28</span></div>
+<div class="bar-row "><span class="lbl" title="RNN vanilla">RNN vanilla</span><div class="track"><div class="fill" style="width:74.6%"></div></div><span class="val">5,96</span></div>
+<div class="bar-row "><span class="lbl" title="GRU (2 × 128)">GRU (2 × 128)</span><div class="track"><div class="fill" style="width:64.9%"></div></div><span class="val">5,19</span></div>
+<div class="bar-row win"><span class="lbl" title="LSTM (2 × 512)">LSTM (2 × 512)</span><div class="track"><div class="fill" style="width:61.7%"></div></div><span class="val">4,94</span></div>
+</div>
+<!--/CHART-->
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Arquitectura (test, 20 ejecuciones)</th><th class="num">Exactitud</th><th class="num">Perplejidad</th><th class="num">Mejor época</th><th class="num">Parámetros</th><th class="num">ms / paso en CPU</th></tr></thead>
+      <tbody>
+        <tr><td>RNN vanilla (256)</td><td class="num">49,46 % ± 0,24</td><td class="num">5,96 ± 0,10</td><td class="num">6,1</td><td class="num">80 412</td><td class="num">5,2</td></tr>
+        <tr><td><strong>LSTM</strong> (2 × 512)</td><td class="num"><strong>52,34 % ± 0,56</strong></td><td class="num"><strong>4,94 ± 0,05</strong></td><td class="num">1,3</td><td class="num">3 225 628</td><td class="num">117,7</td></tr>
+        <tr><td><strong>GRU</strong> (2 × 128)</td><td class="num">51,42 % ± 0,34</td><td class="num">5,19 ± 0,02</td><td class="num">5,1</td><td class="num">163 356</td><td class="num">15,3</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>La RNN <strong>reproduce exactamente</strong> el Lab 2 (49,46 % y 5,96): la comparación está bien montada.</li>
+      <li><strong>LSTM: −17 % de perplejidad</strong> (+2,9 puntos de exactitud). <strong>GRU: −13 %</strong> (+2,0). Diferencias de muchas desviaciones típicas.</li>
+      <li>La LSTM sobreajusta muchísimo antes (mejor época ≈ 1; después la pérdida de validación llega a ≈ 2,3). La GRU es la más estable (± 0,02).</li>
+      <li><strong>Coste</strong>: con el mismo $h=256$, la GRU tarda 2,6 veces lo que la RNN y la LSTM 3,5. La proporción GRU/LSTM (0,75) es justo el «25 % menos» de la teoría. La GRU logra tres cuartas partes de la mejora con 2 veces los parámetros de la RNN; la LSTM final necesita 40 veces más.</li>
+    </ul>
+    <div class="fig-row" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr))">
+      <figure class="diagram"><div class="svg-scroll">
+<!--CHART:c_pp_contexto-->
+<svg viewBox="0 0 460 230" width="460" role="img" aria-label="Perplejidad según el contexto">
+<path d="M56 190.0 H448" class="s-grid"/>
+<text x="50" y="194.0" text-anchor="end" class="s-mut">4</text>
+<path d="M56 151.0 H448" class="s-grid"/>
+<text x="50" y="155.0" text-anchor="end" class="s-mut">6</text>
+<path d="M56 112.0 H448" class="s-grid"/>
+<text x="50" y="116.0" text-anchor="end" class="s-mut">8</text>
+<path d="M56 73.0 H448" class="s-grid"/>
+<text x="50" y="77.0" text-anchor="end" class="s-mut">10</text>
+<path d="M56 34.0 H448" class="s-grid"/>
+<text x="50" y="38.0" text-anchor="end" class="s-mut">12</text>
+<path d="M56 34 V190 H448" class="s-thin"/>
+<text x="65.0" y="205" text-anchor="middle" class="s-mut">1</text>
+<text x="143.7" y="205" text-anchor="middle" class="s-mut">5</text>
+<text x="242.2" y="205" text-anchor="middle" class="s-mut">10</text>
+<text x="340.6" y="205" text-anchor="middle" class="s-mut">15</text>
+<text x="439.0" y="205" text-anchor="middle" class="s-mut">20</text>
+<text x="252.0" y="224" text-anchor="middle" class="s-mut">caracteres de contexto leídos</text>
+<text x="11" y="112.0" text-anchor="middle" class="s-mut" transform="rotate(-90 11 112.0)">perplejidad (test)</text>
+<path d="M65.0,61.6 L84.7,109.9 L104.4,129.1 L124.1,141.6 L143.7,147.3 L163.4,149.7 L183.1,150.9 L202.8,150.7 L222.5,150.8 L242.2,150.7 L261.8,150.8 L281.5,150.8 L301.2,151.0 L320.9,151.0 L340.6,150.9 L360.3,151.0 L379.9,150.9 L399.6,151.0 L419.3,151.0 L439.0,150.9" class="s-thin"/>
+<circle cx="65.0" cy="61.6" r="2.6" style="fill:var(--line-strong)"><title>RNN · 1: 10,59</title></circle>
+<circle cx="84.7" cy="109.9" r="2.6" style="fill:var(--line-strong)"><title>RNN · 2: 8,11</title></circle>
+<circle cx="104.4" cy="129.1" r="2.6" style="fill:var(--line-strong)"><title>RNN · 3: 7,12</title></circle>
+<circle cx="124.1" cy="141.6" r="2.6" style="fill:var(--line-strong)"><title>RNN · 4: 6,48</title></circle>
+<circle cx="143.7" cy="147.3" r="2.6" style="fill:var(--line-strong)"><title>RNN · 5: 6,19</title></circle>
+<circle cx="163.4" cy="149.7" r="2.6" style="fill:var(--line-strong)"><title>RNN · 6: 6,06</title></circle>
+<circle cx="183.1" cy="150.9" r="2.6" style="fill:var(--line-strong)"><title>RNN · 7: 6,00</title></circle>
+<circle cx="202.8" cy="150.7" r="2.6" style="fill:var(--line-strong)"><title>RNN · 8: 6,01</title></circle>
+<circle cx="222.5" cy="150.8" r="2.6" style="fill:var(--line-strong)"><title>RNN · 9: 6,01</title></circle>
+<circle cx="242.2" cy="150.7" r="2.6" style="fill:var(--line-strong)"><title>RNN · 10: 6,01</title></circle>
+<circle cx="261.8" cy="150.8" r="2.6" style="fill:var(--line-strong)"><title>RNN · 11: 6,01</title></circle>
+<circle cx="281.5" cy="150.8" r="2.6" style="fill:var(--line-strong)"><title>RNN · 12: 6,01</title></circle>
+<circle cx="301.2" cy="151.0" r="2.6" style="fill:var(--line-strong)"><title>RNN · 13: 6,00</title></circle>
+<circle cx="320.9" cy="151.0" r="2.6" style="fill:var(--line-strong)"><title>RNN · 14: 6,00</title></circle>
+<circle cx="340.6" cy="150.9" r="2.6" style="fill:var(--line-strong)"><title>RNN · 15: 6,00</title></circle>
+<circle cx="360.3" cy="151.0" r="2.6" style="fill:var(--line-strong)"><title>RNN · 16: 6,00</title></circle>
+<circle cx="379.9" cy="150.9" r="2.6" style="fill:var(--line-strong)"><title>RNN · 17: 6,00</title></circle>
+<circle cx="399.6" cy="151.0" r="2.6" style="fill:var(--line-strong)"><title>RNN · 18: 6,00</title></circle>
+<circle cx="419.3" cy="151.0" r="2.6" style="fill:var(--line-strong)"><title>RNN · 19: 6,00</title></circle>
+<circle cx="439.0" cy="150.9" r="2.6" style="fill:var(--line-strong)"><title>RNN · 20: 6,00</title></circle>
+<path d="M65.0,59.7 L84.7,124.2 L104.4,151.9 L124.1,162.0 L143.7,166.7 L163.4,167.9 L183.1,167.9 L202.8,167.7 L222.5,167.3 L242.2,167.1 L261.8,166.8 L281.5,166.7 L301.2,166.6 L320.9,166.6 L340.6,166.5 L360.3,166.5 L379.9,166.4 L399.6,166.4 L419.3,166.5 L439.0,166.5" class="s-goldl"/>
+<circle cx="65.0" cy="59.7" r="2.6" style="fill:var(--gold)"><title>GRU · 1: 10,68</title></circle>
+<circle cx="84.7" cy="124.2" r="2.6" style="fill:var(--gold)"><title>GRU · 2: 7,37</title></circle>
+<circle cx="104.4" cy="151.9" r="2.6" style="fill:var(--gold)"><title>GRU · 3: 5,95</title></circle>
+<circle cx="124.1" cy="162.0" r="2.6" style="fill:var(--gold)"><title>GRU · 4: 5,44</title></circle>
+<circle cx="143.7" cy="166.7" r="2.6" style="fill:var(--gold)"><title>GRU · 5: 5,19</title></circle>
+<circle cx="163.4" cy="167.9" r="2.6" style="fill:var(--gold)"><title>GRU · 6: 5,13</title></circle>
+<circle cx="183.1" cy="167.9" r="2.6" style="fill:var(--gold)"><title>GRU · 7: 5,13</title></circle>
+<circle cx="202.8" cy="167.7" r="2.6" style="fill:var(--gold)"><title>GRU · 8: 5,15</title></circle>
+<circle cx="222.5" cy="167.3" r="2.6" style="fill:var(--gold)"><title>GRU · 9: 5,16</title></circle>
+<circle cx="242.2" cy="167.1" r="2.6" style="fill:var(--gold)"><title>GRU · 10: 5,17</title></circle>
+<circle cx="261.8" cy="166.8" r="2.6" style="fill:var(--gold)"><title>GRU · 11: 5,19</title></circle>
+<circle cx="281.5" cy="166.7" r="2.6" style="fill:var(--gold)"><title>GRU · 12: 5,20</title></circle>
+<circle cx="301.2" cy="166.6" r="2.6" style="fill:var(--gold)"><title>GRU · 13: 5,20</title></circle>
+<circle cx="320.9" cy="166.6" r="2.6" style="fill:var(--gold)"><title>GRU · 14: 5,20</title></circle>
+<circle cx="340.6" cy="166.5" r="2.6" style="fill:var(--gold)"><title>GRU · 15: 5,20</title></circle>
+<circle cx="360.3" cy="166.5" r="2.6" style="fill:var(--gold)"><title>GRU · 16: 5,20</title></circle>
+<circle cx="379.9" cy="166.4" r="2.6" style="fill:var(--gold)"><title>GRU · 17: 5,21</title></circle>
+<circle cx="399.6" cy="166.4" r="2.6" style="fill:var(--gold)"><title>GRU · 18: 5,21</title></circle>
+<circle cx="419.3" cy="166.5" r="2.6" style="fill:var(--gold)"><title>GRU · 19: 5,21</title></circle>
+<circle cx="439.0" cy="166.5" r="2.6" style="fill:var(--gold)"><title>GRU · 20: 5,21</title></circle>
+<path d="M65.0,63.0 L84.7,123.9 L104.4,153.8 L124.1,165.0 L143.7,169.9 L163.4,171.5 L183.1,172.1 L202.8,172.3 L222.5,172.4 L242.2,172.4 L261.8,172.4 L281.5,172.4 L301.2,172.4 L320.9,172.3 L340.6,172.3 L360.3,172.3 L379.9,172.3 L399.6,172.3 L419.3,172.3 L439.0,172.3" class="s-acc"/>
+<circle cx="65.0" cy="63.0" r="2.6" style="fill:var(--accent)"><title>LSTM · 1: 10,51</title></circle>
+<circle cx="84.7" cy="123.9" r="2.6" style="fill:var(--accent)"><title>LSTM · 2: 7,39</title></circle>
+<circle cx="104.4" cy="153.8" r="2.6" style="fill:var(--accent)"><title>LSTM · 3: 5,86</title></circle>
+<circle cx="124.1" cy="165.0" r="2.6" style="fill:var(--accent)"><title>LSTM · 4: 5,28</title></circle>
+<circle cx="143.7" cy="169.9" r="2.6" style="fill:var(--accent)"><title>LSTM · 5: 5,03</title></circle>
+<circle cx="163.4" cy="171.5" r="2.6" style="fill:var(--accent)"><title>LSTM · 6: 4,95</title></circle>
+<circle cx="183.1" cy="172.1" r="2.6" style="fill:var(--accent)"><title>LSTM · 7: 4,92</title></circle>
+<circle cx="202.8" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 8: 4,91</title></circle>
+<circle cx="222.5" cy="172.4" r="2.6" style="fill:var(--accent)"><title>LSTM · 9: 4,90</title></circle>
+<circle cx="242.2" cy="172.4" r="2.6" style="fill:var(--accent)"><title>LSTM · 10: 4,90</title></circle>
+<circle cx="261.8" cy="172.4" r="2.6" style="fill:var(--accent)"><title>LSTM · 11: 4,90</title></circle>
+<circle cx="281.5" cy="172.4" r="2.6" style="fill:var(--accent)"><title>LSTM · 12: 4,90</title></circle>
+<circle cx="301.2" cy="172.4" r="2.6" style="fill:var(--accent)"><title>LSTM · 13: 4,91</title></circle>
+<circle cx="320.9" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 14: 4,91</title></circle>
+<circle cx="340.6" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 15: 4,91</title></circle>
+<circle cx="360.3" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 16: 4,91</title></circle>
+<circle cx="379.9" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 17: 4,91</title></circle>
+<circle cx="399.6" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 18: 4,91</title></circle>
+<circle cx="419.3" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 19: 4,91</title></circle>
+<circle cx="439.0" cy="172.3" r="2.6" style="fill:var(--accent)"><title>LSTM · 20: 4,91</title></circle>
+<path d="M56 12 H72" class="s-thin"/>
+<text x="77" y="16" class="s-txt-2">RNN</text>
+<path d="M109.8 12 H125.8" class="s-goldl"/>
+<text x="130.8" y="16" class="s-txt-2">GRU</text>
+<path d="M163.6 12 H179.6" class="s-acc"/>
+<text x="184.6" y="16" class="s-txt-2">LSTM</text>
+</svg>
+<!--/CHART-->
+      </div><figcaption>Perplejidad en test según los caracteres de contexto leídos (semilla 100).</figcaption></figure>
+      <div class="callout key" style="margin:0"><div class="ct">◆ ¿Más memoria o mejor contexto corto?</div><ul>
+        <li>Con 1 carácter, las tres empatan (≈ 10,5).</li>
+        <li>La ventaja aparece <strong>ya con 2–3 caracteres</strong> (5,86 frente a 7,12): combinan mejor el contexto inmediato.</li>
+        <li><strong>Las tres se estancan hacia los 7–10 caracteres</strong> (RNN 6,00; GRU 5,13; LSTM 4,90). Aquí la mejora no viene de una memoria mucho más larga, como en la Parte I: con ventanas de 20 y poco texto, casi toda la información está en los últimos ≈ 7 caracteres.</li>
+      </ul></div>
+    </div>
+    <div class="nb-step" data-step="★">
+      <h4>Texto generado (temperatura 0,7)</h4>
+<pre data-code="Salida del cuaderno">
+RNN : the time traveller walked and with of the whim it was always fool are along the intermnited his chair …
+LSTM: the time traveller was his ded that of a moment the intermited_ and the other spieted not in since_ and
+      made so that the whole gars here what it length_ and explain the medical man
+GRU : the time traveller was his model and fars_ but dimensions_ and with black beginnings to the time
+      traveller the genlaness_ the laboratory and this light_ and i was little went round
+voraz (las tres): bucle sobre «the time traveller …»
+</pre>
+      <p class="code-note">Palabras reales y fragmentos del libro («the medical man», «dimensions», «the laboratory»), pero ninguna coherencia global. La mejora de perplejidad (de ≈ 6 a ≈ 5 caracteres «posibles» por paso) apenas se nota a simple vista.</p>
+    </div>
+
+    <div class="summary-box">
+      <h4>Resumen de la Parte III</h4>
+      <div class="kpis">
+        <div class="kpi"><b>5,96 → 4,94</b><span>perplejidad RNN → LSTM (−17 %)</span></div>
+        <div class="kpi"><b>5,19</b><span>perplejidad GRU (−13 %), la más estable</span></div>
+        <div class="kpi"><b>49,5 → 52,3 %</b><span>exactitud RNN → LSTM</span></div>
+        <div class="kpi"><b>2× / 40×</b><span>parámetros GRU / LSTM frente a la RNN</span></div>
+      </div>
+      <ul>
+        <li>Sin reajustar, la LSTM y la GRU son peores que la RNN: sobreajustan desde la primera época.</li>
+        <li>Lo que las hace ganar es regularizar (dropout 0,5), la inicialización por defecto y la segunda capa.</li>
+        <li>Aprovechan mejor el contexto corto; con ventanas de 20 caracteres, la memoria larga no marca la diferencia.</li>
+        <li>La GRU da la mayor parte de la mejora a un coste mucho menor: «empezar con una GRU».</li>
+      </ul>
+    </div>
+    <div class="mini-quiz"><p>Preguntas de los tres cuadernos del Lab 3 (resultados, código y diagnóstico).</p><a class="btn btn-solid" href="../test.html#practica=L3">Test de los cuadernos L3 →</a></div>
+  </section>
+
+
+  <section id="l3-chuleta">
+    <h2 class="sec" data-short="Chuleta final"><span class="n">★</span> Chuleta del Lab 3</h2>
+    <div class="tbl-wrap"><table class="tbl"><tbody>
+      <tr><th>Puertas</th><td>$\mathbf F_t,\mathbf I_t,\mathbf O_t=\sigma(\mathbf X_t\mathbf W_{x\cdot}+\mathbf H_{t-1}\mathbf W_{h\cdot}+\mathbf b_\cdot)$ · $\tilde{\mathbf C}_t=\tanh(\dots)$ · olvido = tamiz, entrada = portero, salida = foco</td></tr>
+      <tr><th>Estados</th><td>$\mathbf C_t=\mathbf F_t\odot\mathbf C_{t-1}+\mathbf I_t\odot\tilde{\mathbf C}_t$ (largo plazo) · $\mathbf H_t=\mathbf O_t\odot\tanh(\mathbf C_t)$ (corto plazo)</td></tr>
+      <tr><th>Parámetros</th><td>LSTM $4h(i+h+1)$ (8 matrices, 4 sesgos) · GRU $3h(i+h+1)$ (−25 %) · RNN $h(i+h+1)$ · PyTorch: +1 sesgo por bloque · 25 → 100: 50 400</td></tr>
+      <tr><th>Gradiente</th><td>camino de la celda: $\partial\mathbf C_t/\partial\mathbf C_{t-1}=\operatorname{diag}(\mathbf F_t)$, sin matriz ni derivada · $f=1,i=0$ conserva para siempre · no lo garantiza</td></tr>
+      <tr><th>GRU</th><td>$\mathbf z_t$ actualización (retener o reemplazar), $\mathbf r_t$ reinicio (cuánto pasado para el candidato) · $\mathbf h_t=(1-\mathbf z_t)\odot\mathbf h_{t-1}+\mathbf z_t\odot\tilde{\mathbf h}_t$ · empezar con GRU</td></tr>
+      <tr><th>Variantes</th><td>apiladas (Graves 2013; dropout entre capas) · bidireccionales (Graves 2005): solo si se dispone de la secuencia entera (sí para clasificar reseñas, no para el siguiente carácter)</td></tr>
+      <tr><th>Historia</th><td>1997 Hochreiter y Schmidhuber · 2000 puerta de olvido (Gers) · 2011–2017 dominantes (voz, Siri, Alexa, Translate) · 2014 GRU (Cho) · 2017 Transformers</td></tr>
+      <tr><th>Parte I</th><td>copia con retardo: BCE en la 2.ª mitad, azar 50 % · LSTM por defecto atascada (olvido 0,5) · sesgo de olvido 3 → 93 % (d = 29) · RNN ortogonal 97–100 %</td></tr>
+      <tr><th>Parte II</th><td>relleno leído + &lt;PAD&gt; aleatorio, stopwords sin «not», re.sub con count · GloVe 82,0 % frente a aprendido 71,1 % · ajustar ≈ 0 · TF-IDF 87,7 %</td></tr>
+      <tr><th>Parte III</th><td>sin reajustar empeoran · dropout 0,5 decisivo · PP RNN 5,96, GRU 5,19, LSTM 4,94 · mejor contexto corto, no memoria más larga</td></tr>
+    </tbody></table></div>
+    <div class="mini-quiz"><p><strong>Simulacro del Lab 3</strong>.</p><a class="btn btn-solid" href="../test.html#tema=L3&amp;modo=examen">Simulacro L3 →</a></div>
+  </section>
+
+  </main>
+</div>
+<footer class="footer">
+  <div class="wrap"><span><a href="lab-2.html">← Lab 2 · Redes recurrentes</a></span><span><a href="../test.html#tema=L3">Ir al test del Lab 3 →</a></span></div>
+</footer>
+</body>
+</html>

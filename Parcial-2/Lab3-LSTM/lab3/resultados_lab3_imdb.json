@@ -1,0 +1,525 @@
+{
+ "datos": {
+  "total": 10000,
+  "train_original": 2000,
+  "val_original": 2000,
+  "test": 6000,
+  "train": 3000,
+  "val": 1000,
+  "mediana_tokens": 88.0,
+  "frac_rellenadas": 0.5745,
+  "sin_glove": 202,
+  "vocab_original": 10194,
+  "afectadas_count": 9
+ },
+ "original": {
+  "GloVe congelado (como se entrega)": {
+   "test_acc": 0.7216666666666667,
+   "historial": [
+    [
+     0.6846794169396162,
+     0.6608996633440256,
+     0.62109375
+    ],
+    [
+     0.6147156525403261,
+     0.6169418096542358,
+     0.6591796875
+    ],
+    [
+     0.5725146746262908,
+     0.599303119815886,
+     0.69482421875
+    ],
+    [
+     0.5405523646622896,
+     0.538401854224503,
+     0.7392578125
+    ],
+    [
+     0.4976371405646205,
+     0.5532325571402907,
+     0.7275390625
+    ]
+   ]
+  },
+  "embedding aprendido": {
+   "test_acc": 0.6601666666666667,
+   "historial": [
+    [
+     0.6919537261128426,
+     0.6905124504119158,
+     0.54443359375
+    ],
+    [
+     0.6612835843116045,
+     0.6831801608204842,
+     0.57421875
+    ],
+    [
+     0.5703129963949323,
+     0.6984095089137554,
+     0.59765625
+    ],
+    [
+     0.450256229378283,
+     0.7764991894364357,
+     0.63427734375
+    ],
+    [
+     0.3175881151109934,
+     0.8040399961173534,
+     0.65478515625
+    ]
+   ]
+  }
+ },
+ "tramos": {
+  "< 25": {
+   "reseñas": 116.0,
+   "exactitud · GloVe congelado (como se entrega)": 0.8103448275862069,
+   "exactitud · embedding aprendido": 0.8189655172413793
+  },
+  "25–49": {
+   "reseñas": 585.0,
+   "exactitud · GloVe congelado (como se entrega)": 0.788034188034188,
+   "exactitud · embedding aprendido": 0.7128205128205128
+  },
+  "50–74": {
+   "reseñas": 1622.0,
+   "exactitud · GloVe congelado (como se entrega)": 0.7355117139334155,
+   "exactitud · embedding aprendido": 0.6954377311960542
+  },
+  "75–99": {
+   "reseñas": 1124.0,
+   "exactitud · GloVe congelado (como se entrega)": 0.7064056939501779,
+   "exactitud · embedding aprendido": 0.6343416370106761
+  },
+  "≥ 100 (truncada)": {
+   "reseñas": 2553.0,
+   "exactitud · GloVe congelado (como se entrega)": 0.700352526439483,
+   "exactitud · embedding aprendido": 0.6298472385428907
+  }
+ },
+ "experimentos": {
+  "arreglos": [
+   {
+    "opcion": "P0 · original",
+    "val · aprendido": 0.6724999944368998,
+    "± · aprendido": 0.018252852142986217,
+    "test · aprendido": 0.6788888971010844,
+    "épocas · aprendido": 5.0,
+    "val · glove_congelado": 0.7119999925295512,
+    "± · glove_congelado": 0.0353058047876551,
+    "test · glove_congelado": 0.7051111261049906,
+    "épocas · glove_congelado": 5.0,
+    "s/entrenamiento": 14.827618916829428
+   },
+   {
+    "opcion": "P1 · + sin leer el relleno, <PAD> = 0",
+    "val · aprendido": 0.6825000047683716,
+    "± · aprendido": 0.0017795124614528957,
+    "test · aprendido": 0.6956110994021097,
+    "épocas · aprendido": 5.0,
+    "val · glove_congelado": 0.7550000150998434,
+    "± · glove_congelado": 0.015973935429379926,
+    "test · glove_congelado": 0.753166655699412,
+    "épocas · glove_congelado": 5.0,
+    "s/entrenamiento": 21.09969957669576
+   },
+   {
+    "opcion": "P2 · + preprocesado corregido",
+    "val · aprendido": 0.6826666593551636,
+    "± · aprendido": 0.037238700581654315,
+    "test · aprendido": 0.6889999906222025,
+    "épocas · aprendido": 5.0,
+    "val · glove_congelado": 0.7515000104904175,
+    "± · glove_congelado": 0.007483314008929943,
+    "test · glove_congelado": 0.7451666593551636,
+    "épocas · glove_congelado": 5.0,
+    "s/entrenamiento": 18.33724268277486
+   },
+   {
+    "opcion": "P3 · + 3000/1000 y parada temprana",
+    "val · aprendido": 0.7210000157356262,
+    "± · aprendido": 0.010198036315239446,
+    "test · aprendido": 0.7337777813275655,
+    "épocas · aprendido": 3.6666666666666665,
+    "val · glove_congelado": 0.7829999923706055,
+    "± · glove_congelado": 0.017454700522954805,
+    "test · glove_congelado": 0.7840555707613627,
+    "épocas · glove_congelado": 9.0,
+    "s/entrenamiento": 51.846325079600014
+   }
+  ],
+  "longitud": [
+   {
+    "opcion": "100 (principio)",
+    "val · aprendido": 0.7210000157356262,
+    "± · aprendido": 0.010198036315239446,
+    "test · aprendido": 0.7337222297986349,
+    "épocas · aprendido": 3.6666666666666665,
+    "val · glove_congelado": 0.7829999923706055,
+    "± · glove_congelado": 0.017454700522954805,
+    "test · glove_congelado": 0.7840555707613627,
+    "épocas · glove_congelado": 9.0,
+    "s/entrenamiento": 57.96794295310974
+   },
+   {
+    "opcion": "200 (principio)",
+    "val · aprendido": 0.737666666507721,
+    "± · aprendido": 0.014613548233097453,
+    "test · aprendido": 0.7316666642824808,
+    "épocas · aprendido": 3.3333333333333335,
+    "val · glove_congelado": 0.8040000001589457,
+    "± · glove_congelado": 0.02772484983972127,
+    "test · glove_congelado": 0.7959444522857666,
+    "épocas · glove_congelado": 10.333333333333334,
+    "s/entrenamiento": 104.54480767250061
+   },
+   {
+    "opcion": "400 (principio)",
+    "val · aprendido": 0.7386666735013326,
+    "± · aprendido": 0.013912416281140998,
+    "test · aprendido": 0.7407222191492716,
+    "épocas · aprendido": 3.3333333333333335,
+    "val · glove_congelado": 0.7870000004768372,
+    "± · glove_congelado": 0.02201515887823027,
+    "test · glove_congelado": 0.785777767499288,
+    "épocas · glove_congelado": 6.666666666666667,
+    "s/entrenamiento": 135.63016271591187
+   },
+   {
+    "opcion": "200 (final)",
+    "val · aprendido": 0.7269999980926514,
+    "± · aprendido": 0.025468926483356573,
+    "test · aprendido": 0.7310555577278137,
+    "épocas · aprendido": 3.0,
+    "val · glove_congelado": 0.7673333287239075,
+    "± · glove_congelado": 0.016357144911120513,
+    "test · glove_congelado": 0.7832777698834738,
+    "épocas · glove_congelado": 7.333333333333333,
+    "s/entrenamiento": 79.24711767832439
+   }
+  ],
+  "stopwords": [
+   {
+    "opcion": "lista NLTK completa",
+    "val · aprendido": 0.6899999777475992,
+    "± · aprendido": 0.004242642260601629,
+    "test · aprendido": 0.7065555453300476,
+    "épocas · aprendido": 2.6666666666666665,
+    "val · glove_congelado": 0.7900000015894572,
+    "± · glove_congelado": 0.0188326023714005,
+    "test · glove_congelado": 0.788444439570109,
+    "épocas · glove_congelado": 6.666666666666667,
+    "s/entrenamiento": 87.97999970118205
+   },
+   {
+    "opcion": "NLTK sin negaciones ni intensificadores",
+    "val · aprendido": 0.7373333175977071,
+    "± · aprendido": 0.014267281484282279,
+    "test · aprendido": 0.7288888891537985,
+    "épocas · aprendido": 3.3333333333333335,
+    "val · glove_congelado": 0.8040000001589457,
+    "± · glove_congelado": 0.02772484983972127,
+    "test · glove_congelado": 0.7959444522857666,
+    "épocas · glove_congelado": 10.333333333333334,
+    "s/entrenamiento": 159.51197703679404
+   },
+   {
+    "opcion": "no quitar ninguna",
+    "val · aprendido": 0.6163333257039388,
+    "± · aprendido": 0.021791935723947636,
+    "test · aprendido": 0.645722230275472,
+    "épocas · aprendido": 2.0,
+    "val · glove_congelado": 0.7099999984105428,
+    "± · glove_congelado": 0.010198055797633762,
+    "test · glove_congelado": 0.7289444406827291,
+    "épocas · glove_congelado": 4.0,
+    "s/entrenamiento": 76.79416791598003
+   }
+  ],
+  "arquitectura": [
+   {
+    "opcion": "LSTM bidireccional, 2 capas",
+    "val · aprendido": 0.7369999885559082,
+    "± · aprendido": 0.01392838440863919,
+    "test · aprendido": 0.7286111116409302,
+    "épocas · aprendido": 3.3333333333333335,
+    "val · glove_congelado": 0.8040000001589457,
+    "± · glove_congelado": 0.02772484983972127,
+    "test · glove_congelado": 0.7959444522857666,
+    "épocas · glove_congelado": 10.333333333333334,
+    "s/entrenamiento": 158.34127243359885
+   },
+   {
+    "opcion": "GRU bidireccional, 2 capas",
+    "val · aprendido": 0.7200000087420145,
+    "± · aprendido": 0.02031418651133638,
+    "test · aprendido": 0.7179999947547913,
+    "épocas · aprendido": 3.6666666666666665,
+    "val · glove_congelado": 0.8236666520436605,
+    "± · glove_congelado": 0.008055360575408663,
+    "test · glove_congelado": 0.8198333382606506,
+    "épocas · glove_congelado": 5.666666666666667,
+    "s/entrenamiento": 216.0591536362966
+   },
+   {
+    "opcion": "LSTM bidireccional, 1 capa",
+    "val · aprendido": 0.7303333282470703,
+    "± · aprendido": 0.01755625153958953,
+    "test · aprendido": 0.725777784983317,
+    "épocas · aprendido": 4.0,
+    "val · glove_congelado": 0.7696666717529297,
+    "± · glove_congelado": 0.030944391901385978,
+    "test · glove_congelado": 0.7723333239555359,
+    "épocas · glove_congelado": 4.333333333333333,
+    "s/entrenamiento": 22.99738836288452
+   },
+   {
+    "opcion": "LSTM unidireccional, 1 capa",
+    "val · aprendido": 0.7256666620572408,
+    "± · aprendido": 0.021684609754652993,
+    "test · aprendido": 0.7222222089767456,
+    "épocas · aprendido": 4.666666666666667,
+    "val · glove_congelado": 0.709333340326945,
+    "± · glove_congelado": 0.0365726082199507,
+    "test · glove_congelado": 0.7111111084620158,
+    "épocas · glove_congelado": 2.3333333333333335,
+    "s/entrenamiento": 8.376332918802897
+   }
+  ]
+ },
+ "config_final": {
+  "prepro": "corregido",
+  "val": 0.25,
+  "L": 200,
+  "recorte": "inicio",
+  "tipo": "GRU",
+  "h": 128,
+  "capas": 2,
+  "dropout": 0.5,
+  "bidireccional": true,
+  "leer_relleno": false,
+  "pad_cero": true,
+  "lr": 0.001,
+  "bs": 64,
+  "epocas": 20,
+  "paciencia": 3,
+  "n_train": null
+ },
+ "final": {
+  "aprendido": {
+   "test_acc": [
+    0.7326666712760925,
+    0.7164999842643738,
+    0.7048333287239075,
+    0.6978333592414856,
+    0.7013333439826965
+   ],
+   "val_acc": [
+    0.7419999837875366,
+    0.7250000238418579,
+    0.6930000185966492,
+    0.7279999852180481,
+    0.6729999780654907
+   ],
+   "mejor_epoca": [
+    4,
+    4,
+    3,
+    3,
+    3
+   ],
+   "entrenables": 1509245,
+   "s_epoca": 25.690255136716935
+  },
+  "glove_congelado": {
+   "test_acc": [
+    0.8296666741371155,
+    0.8165000081062317,
+    0.8133333325386047,
+    0.8198333382606506,
+    0.8209999799728394
+   ],
+   "val_acc": [
+    0.8349999785423279,
+    0.8190000057220459,
+    0.8169999718666077,
+    0.8339999914169312,
+    0.8270000219345093
+   ],
+   "mejor_epoca": [
+    7,
+    6,
+    4,
+    8,
+    7
+   ],
+   "entrenables": 473345,
+   "s_epoca": 20.76698880241719
+  },
+  "glove_ajustado": {
+   "test_acc": [
+    0.8303333520889282,
+    0.8138333559036255,
+    0.8203333616256714,
+    0.8153333067893982,
+    0.8256666660308838
+   ],
+   "val_acc": [
+    0.8309999704360962,
+    0.8059999942779541,
+    0.8090000152587891,
+    0.8240000009536743,
+    0.8309999704360962
+   ],
+   "mejor_epoca": [
+    3,
+    3,
+    3,
+    4,
+    4
+   ],
+   "entrenables": 1509245,
+   "s_epoca": 54.87323723974682
+  }
+ },
+ "tfidf": 0.877,
+ "curva_datos": {
+  "tamaños": [
+   250,
+   500,
+   1000,
+   2000,
+   3000
+  ],
+  "aprendido": [
+   0.5416666567325592,
+   0.5530833303928375,
+   0.581166684627533,
+   0.6481666564941406,
+   0.7245833277702332
+  ],
+  "glove_congelado": [
+   0.663916677236557,
+   0.6934166550636292,
+   0.7651666700839996,
+   0.7945833206176758,
+   0.8230833411216736
+  ],
+  "glove_ajustado": [
+   0.6667499840259552,
+   0.6969999969005585,
+   0.7330000102519989,
+   0.804583340883255,
+   0.8207499980926514
+  ]
+ },
+ "umbral": {
+  "aprendido": {
+   "frac_franja": 0.10383333333333333,
+   "acc_franja": 0.5345104333868379,
+   "acc_resto": 0.7556258136507346
+  },
+  "glove_congelado": {
+   "frac_franja": 0.1,
+   "acc_franja": 0.5583333333333333,
+   "acc_resto": 0.8598148148148148
+  },
+  "glove_ajustado": {
+   "frac_franja": 0.07483333333333334,
+   "acc_franja": 0.5657015590200446,
+   "acc_resto": 0.8517384255089173
+  }
+ },
+ "desacuerdo": 0.257,
+ "propias": {
+  "This movie was fantastic! The acting was superb and the plot was gripp": {
+   "aprendido": 0.34999483823776245,
+   "glove congelado": 0.9849138855934143,
+   "glove ajustado": 0.8450782299041748,
+   "original (GloVe congelado)": 0.7169062495231628
+  },
+  "What a waste of time. The plot was predictable and the acting was terr": {
+   "aprendido": 0.010512059554457664,
+   "glove congelado": 0.008055401034653187,
+   "glove ajustado": 0.005109475459903479,
+   "original (GloVe congelado)": 0.14959877729415894
+  },
+  "The movie was not good.": {
+   "aprendido": 0.36332398653030396,
+   "glove congelado": 0.517662525177002,
+   "glove ajustado": 0.47654709219932556,
+   "original (GloVe congelado)": 0.5698776245117188
+  },
+  "The movie was not bad at all, I actually enjoyed it.": {
+   "aprendido": 0.07431767880916595,
+   "glove congelado": 0.27047982811927795,
+   "glove ajustado": 0.1281285434961319,
+   "original (GloVe congelado)": 0.39169833064079285
+  },
+  "Great actors, beautiful photography, but the story is boring and far t": {
+   "aprendido": 0.6988412737846375,
+   "glove congelado": 0.4520343840122223,
+   "glove ajustado": 0.44018271565437317,
+   "original (GloVe congelado)": 0.8775945901870728
+  },
+  "Boring at first, but the second half is brilliant and the ending is pe": {
+   "aprendido": 0.12031856179237366,
+   "glove congelado": 0.06032387912273407,
+   "glove ajustado": 0.12591500580310822,
+   "original (GloVe congelado)": 0.36218345165252686
+  },
+  "Oh great, another two hours of my life I will never get back.": {
+   "aprendido": 0.060445792973041534,
+   "glove congelado": 0.6098045706748962,
+   "glove ajustado": 0.8310750126838684,
+   "original (GloVe congelado)": 0.7512804269790649
+  },
+  "I expected a masterpiece. I got a mess.": {
+   "aprendido": 0.3694072365760803,
+   "glove congelado": 0.13411366939544678,
+   "glove ajustado": 0.1354072540998459,
+   "original (GloVe congelado)": 0.2879241406917572
+  }
+ },
+ "vecinas": {
+  "good": {
+   "aprendido": "sophomoric, nu, created, king, lara, overlooked",
+   "GloVe original": "better, sure, really, kind, very, way",
+   "GloVe ajustado": "better, really, sure, kind, think, way"
+  },
+  "bad": {
+   "aprendido": "bird, mj, convenient, robots, panties, engrossing",
+   "GloVe original": "worse, good, things, too, thing, lot",
+   "GloVe ajustado": "worse, things, good, thing, too, nothing"
+  },
+  "excellent": {
+   "aprendido": "particular, senator, firth, marlow, dive, chewing",
+   "GloVe original": "good, quality, terrific, superb, best, impressive",
+   "GloVe ajustado": "good, superb, terrific, quality, best, impressive"
+  },
+  "awful": {
+   "aprendido": "peyton, prisoners, bull, vanilla, bullitt, fantasy",
+   "GloVe original": "horrible, terrible, dreadful, horrendous, scary, unbelievable",
+   "GloVe ajustado": "horrible, terrible, dreadful, horrendous, ugly, unbelievable"
+  },
+  "boring": {
+   "aprendido": "followers, sink, stalks, expression, joey, phenomenon",
+   "GloVe original": "tedious, dull, bored, funny, stupid, downright",
+   "GloVe ajustado": "tedious, dull, stupid, bored, downright, silly"
+  },
+  "waste": {
+   "aprendido": "ideals, annette, per, problematic, theater, seasoned",
+   "GloVe original": "wastes, garbage, toxic, trash, dump, water",
+   "GloVe ajustado": "wastes, garbage, trash, toxic, dump, rubbish"
+  },
+  "not": {
+   "aprendido": "misunderstanding, bava, ring, liking, shahid, sarandon",
+   "GloVe original": "would, could, but, even, might, no",
+   "GloVe ajustado": "would, could, but, even, might, only"
+  }
+ }
+}
